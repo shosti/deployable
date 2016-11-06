@@ -23,6 +23,9 @@ environment :prod do
   set include_erts: true
   set include_src: false
   set cookie: :"*ddupX)@EG0OFAOuL>?(lk-*@`uq5c1h*EmM(fLRUj/|*~iond&i)N$ZeqZjz>{R"
+  set overlays: [
+    {:template, "aws/appspec.yml.eex", "appspec.yml"}
+  ]
 end
 
 # You may define one or more releases in this file.
@@ -33,4 +36,3 @@ end
 release :deployable do
   set version: current_version(:deployable)
 end
-
