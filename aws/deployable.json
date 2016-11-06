@@ -476,6 +476,18 @@
 		},
 		"AppServer": {
 			"Type": "AWS::EC2::Instance",
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "services": {
+            "sysvinit": {
+              "codedeploy-agent": {
+                "enabled": "true",
+                "ensureRunning": "true"
+              }
+            }
+          }
+        }
+      },
 			"Properties": {
 				"ImageId": {"Fn::FindInMap": ["EC2RegionMap", {"Ref": "AWS::Region"}, "AmazonLinuxAMIHVMEBSBacked64bit"]},
 				"InstanceType": "t2.micro",
@@ -487,6 +499,9 @@
 					"DeviceIndex": "0",
 					"GroupSet": [{"Ref": "SecurityGroup"}]
 				}],
+        "Tags": [
+          { "Key": "Name", "Value": "Deployable" }
+        ],
         "UserData": {"Fn::Base64": {"Fn::Join": ["", [
           "#!/bin/bash -ex\n",
           "yum update -y\n",
@@ -507,7 +522,6 @@
           "wget https://aws-codedeploy-", {"Ref": "AWS::Region"}, ".s3.amazonaws.com/latest/install\n",
           "chmod +x ./install\n",
           "./install auto || error_exit 'Failed to install codedeploy'\n",
-          "service codedeploy-agent start || error_exit 'Failed to start codedeploy'\n",
           "/opt/aws/bin/cfn-init -s ",
           {
             "Ref": "AWS::StackId"
@@ -518,11 +532,7 @@
           },
           " || error_exit 'Failed to run cfn-init.'\n",
           "# All is well, so signal success.\n",
-          "/opt/aws/bin/cfn-signal -e 0 -r \"AWS CodeDeploy Agent setup complete.\" '",
-          {
-            "Ref": "WaitHandle"
-          },
-          "'\n"
+					"/opt/aws/bin/cfn-signal --stack ", {"Ref": "AWS::StackName"}, " --resource AppServer --region ", {"Ref": "AWS::Region"}, "\n"
         ]]}}
       },
       "CreationPolicy": {
