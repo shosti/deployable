@@ -487,21 +487,57 @@
 					"DeviceIndex": "0",
 					"GroupSet": [{"Ref": "SecurityGroup"}]
 				}],
-				"UserData": {"Fn::Base64": {"Fn::Join": ["", [
-					"#!/bin/bash -ex\n",
-					"/opt/aws/bin/cfn-signal --stack ", {"Ref": "AWS::StackName"}, " --resource AppServer --region ", {"Ref": "AWS::Region"}, "\n"
-				]]}}
-			},
-			"CreationPolicy": {
-				"ResourceSignal": {
-					"Timeout": "PT5M"
-				}
-			},
-			"DependsOn": "VPCGatewayAttachment"
-		}
-	},
-	"Outputs": {
-		"BastionHostPublicName": {
+        "UserData": {"Fn::Base64": {"Fn::Join": ["", [
+          "#!/bin/bash -ex\n",
+          "yum update -y\n",
+          "yum install ruby -y\n",
+          "yum install wget -y\n",
+          "# Helper function.\n",
+          "function error_exit\n",
+          "{\n",
+          "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '",
+          {
+            "Ref": "WaitHandle"
+          },
+          "'\n",
+          "  exit 1\n",
+          "}\n",
+          "# Install the AWS CodeDeploy Agent.\n",
+          "cd /home/ec2-user/\n",
+          "wget https://aws-codedeploy-", {"Ref": "AWS::Region"}, ".s3.amazonaws.com/latest/install\n",
+          "chmod +x ./install\n",
+          "./install auto || error_exit 'Failed to install codedeploy'\n",
+          "service codedeploy-agent start || error_exit 'Failed to start codedeploy'\n",
+          "/opt/aws/bin/cfn-init -s ",
+          {
+            "Ref": "AWS::StackId"
+          },
+          " -r AppServer --region ",
+          {
+            "Ref": "AWS::Region"
+          },
+          " || error_exit 'Failed to run cfn-init.'\n",
+          "# All is well, so signal success.\n",
+          "/opt/aws/bin/cfn-signal -e 0 -r \"AWS CodeDeploy Agent setup complete.\" '",
+          {
+            "Ref": "WaitHandle"
+          },
+          "'\n"
+        ]]}}
+      },
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Timeout": "PT5M"
+        }
+      },
+      "DependsOn": "VPCGatewayAttachment"
+    },
+    "WaitHandle": {
+      "Type": "AWS::CloudFormation::WaitConditionHandle"
+    }
+  },
+  "Outputs": {
+    "BastionHostPublicName": {
 			"Value": {"Fn::GetAtt": ["BastionHost", "PublicDnsName"]},
 			"Description": "connect via SSH as user ec2-user"
 		},
