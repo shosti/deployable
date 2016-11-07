@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-
-export MIX_ENV=prod
-./node_modules/brunch/bin/brunch b -p
-mix phoenix.digest
-mix release --env=prod

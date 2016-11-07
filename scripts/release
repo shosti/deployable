@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+if [ -n "$IN_DOCKER_BUILD" ]; then
+    ./node_modules/brunch/bin/brunch b -p
+    mix phoenix.digest
+    mix release --env=prod
+else
+    VERSION=$(mix run -e 'IO.puts Mix.Project.config[:version]')
+    DEST="$(mktemp -d)/deployable-$VERSION.tar.gz"
+    docker build . -t "deployable:$VERSION"
+    CONTAINER=$(docker run -dt "deployable:$VERSION")
+    docker cp "$CONTAINER:/build/rel/deployable/releases/$VERSION/deployable.tar.gz" "$DEST"
+    docker kill "$CONTAINER"
+    echo "Saved to $DEST"
+fi

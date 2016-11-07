@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+export HOME="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+"$HOME"/bin/deployable ping

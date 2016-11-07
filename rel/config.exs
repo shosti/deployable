@@ -24,7 +24,11 @@ environment :prod do
   set include_src: false
   set cookie: :"*ddupX)@EG0OFAOuL>?(lk-*@`uq5c1h*EmM(fLRUj/|*~iond&i)N$ZeqZjz>{R"
   set overlays: [
-    {:template, "aws/appspec.yml.eex", "appspec.yml"}
+    {:template, "aws/appspec.yml.eex", "appspec.yml"},
+    {:mkdir, "scripts"},
+    {:copy, "scripts/start", "scripts/start"},
+    {:copy, "scripts/stop", "scripts/stop"},
+    {:copy, "scripts/validate", "scripts/validate"},
   ]
 end
 

@@ -1,12 +1,9 @@
 version: 0.0
 os: linux
-files:
-  - source: /
-    destination: /deploy
 hooks:
   ApplicationStart:
-    - location: PORT=4000 /deploy/bin/deployable start
+    - location: scripts/start
   ApplicationStop:
-    - location: /deploy/bin/deployable stop
+    - location: scripts/stop
   ValidateService:
-    - location: /deploy/bin/deployable ping
+    - location: scripts/validate

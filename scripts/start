@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+export HOME="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+export PORT=80
+"$HOME"/bin/deployable start
