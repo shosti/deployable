@@ -524,32 +524,14 @@
           "yum update -y\n",
           "yum install ruby -y\n",
           "yum install wget -y\n",
-          "# Helper function.\n",
-          "function error_exit\n",
-          "{\n",
-          "  /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '",
-          {
-            "Ref": "WaitHandle"
-          },
-          "'\n",
-          "  exit 1\n",
-          "}\n",
           "# Make deploy dir.\n",
           "mkdir /deploy\n",
           "# Install the AWS CodeDeploy Agent.\n",
           "cd /home/ec2-user/\n",
           "wget https://aws-codedeploy-", {"Ref": "AWS::Region"}, ".s3.amazonaws.com/latest/install\n",
           "chmod +x ./install\n",
-          "./install auto || error_exit 'Failed to install codedeploy'\n",
-          "/opt/aws/bin/cfn-init -s ",
-          {
-            "Ref": "AWS::StackId"
-          },
-          " -r AppServer --region ",
-          {
-            "Ref": "AWS::Region"
-          },
-          " || error_exit 'Failed to run cfn-init.'\n",
+          "./install auto\n",
+          "/opt/aws/bin/cfn-init -s ", {"Ref": "AWS::StackId"}, " -r AppServer --region ", {"Ref": "AWS::Region"}, "\n",
           "# All is well, so signal success.\n",
           "/opt/aws/bin/cfn-signal --stack ", {"Ref": "AWS::StackName"}, " --resource AppServer --region ", {"Ref": "AWS::Region"}, "\n"
         ]]}}
@@ -677,8 +659,32 @@
         ]
       }
     },
-    "WaitHandle": {
-      "Type": "AWS::CloudFormation::WaitConditionHandle"
+    "DeployableApp": {
+      "Type": "AWS::CodeDeploy::Application",
+      "Properties": {
+        "ApplicationName": "DeployableApp"
+      }
+    },
+    "DeployableDG": {
+      "Type": "AWS::CodeDeploy::DeploymentGroup",
+      "Properties": {
+        "ApplicationName": {"Ref": "DeployableApp"},
+        "DeploymentGroupName": "DeployableDG",
+        "DeploymentConfigName": "CodeDeployDefault.OneAtATime",
+        "Ec2TagFilters": [
+          {
+            "Key": "Name",
+            "Value": "Deployable",
+            "Type": "KEY_AND_VALUE"
+          }
+        ],
+        "ServiceRoleArn": {
+          "Fn::GetAtt": [
+            "CodeDeployTrustRole",
+            "Arn"
+          ]
+        }
+      }
     }
   },
   "Outputs": {
@@ -693,14 +699,6 @@
     "AppServerPrivateIp": {
       "Value": {"Fn::GetAtt": ["AppServer", "PrivateIp"]},
       "Description": "connect via SSH from bastion host"
-    },
-    "CodeDeployTrustRoleARN": {
-      "Value": {
-        "Fn::GetAtt": [
-          "CodeDeployTrustRole",
-          "Arn"
-        ]
-      }
     }
   }
 }
