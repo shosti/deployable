@@ -668,7 +668,12 @@
         "MinSize": {"Ref": "NumberOfServers"},
         "MaxSize": {"Ref": "NumberOfServers"},
         "DesiredCapacity": {"Ref": "NumberOfServers"},
-        "VPCZoneIdentifier": [{"Ref": "SubnetPrivateApp"}]
+        "VPCZoneIdentifier": [{"Ref": "SubnetPrivateApp"}],
+        "Tags": [{
+          "Key": "AutoScalingGroupName",
+          "Value": "Deployable",
+          "PropagateAtLaunch": "true"
+        }]
       },
       "CreationPolicy": {
         "ResourceSignal": {
