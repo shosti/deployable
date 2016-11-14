@@ -721,6 +721,7 @@
                 "autoscaling:Describe*",
                 "cloudformation:Describe*",
                 "cloudformation:GetTemplate",
+                "ec2:DescribeInstances",
                 "s3:Get*"
               ],
               "Resource": "*"

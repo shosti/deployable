@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 
 set -eo pipefail
+
+# A bunch of AWS preliminaries
+
+REGION=$(curl http://169.254.169.254/latest/dynamic/instance-identity/document|grep region|awk -F\" '{print $4}')
+NODE_IDS=$(aws autoscaling describe-auto-scaling-instances \
+                   --region "$REGION" \
+                   --query "AutoScalingInstances[*].InstanceId" \
+                   --output text)
+export NODE_IPS=$(aws ec2 describe-instances \
+                      --instance-ids $NODE_IDS \
+                      --output text \
+                      --query  "Reservations[0].Instances[*].PrivateIpAddress" \
+                      --region "$REGION")
+
 export HOME="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 export PORT=80
 export REPLACE_OS_VARS=true

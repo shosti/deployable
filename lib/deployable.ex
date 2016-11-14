@@ -6,6 +6,8 @@ defmodule Deployable do
   def start(_type, _args) do
     import Supervisor.Spec
 
+    connect_to_peers
+
     # Define workers and child supervisors to be supervised
     children = [
       # Start the endpoint when the application starts
@@ -25,5 +27,12 @@ defmodule Deployable do
   def config_change(changed, _new, removed) do
     Deployable.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp connect_to_peers do
+    node_ips = System.get_env("NODE_IPS") || ""
+    node_ips
+    |> String.split
+    |> Enum.each(fn ip -> Node.connect(:"deployable@#{ip}") end)
   end
 end
