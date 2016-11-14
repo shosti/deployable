@@ -7,11 +7,20 @@ if [ -n "$IN_DOCKER_BUILD" ]; then
     mix phoenix.digest
     mix release --env=prod
 else
+    mix # get rid of compiler junk
     VERSION=$(mix run -e 'IO.puts Mix.Project.config[:version]')
     DEST="$(mktemp -d)/deployable-$VERSION.tar.gz"
+    CODE_BUCKET=deployable-code
+    DEPLOY_APP_NAME=DeployableApp
+    DEPLOY_DEPLOYMENT_GROUP=DeployableDG
+
     docker build . -t "deployable:$VERSION"
     CONTAINER=$(docker run -dt "deployable:$VERSION")
     docker cp "$CONTAINER:/build/rel/deployable/releases/$VERSION/deployable.tar.gz" "$DEST"
     docker kill "$CONTAINER"
-    echo "Saved to $DEST"
+    aws s3 cp "$DEST" "s3://${CODE_BUCKET}/${VERSION}.tar.gz"
+    aws deploy create-deployment \
+        --application-name "$DEPLOY_APP_NAME" \
+        --deployment-group-name "$DEPLOY_DEPLOYMENT_GROUP" \
+        --s3-location bucket="${CODE_BUCKET}",key="${VERSION}.tar.gz",bundleType=tgz
 fi
