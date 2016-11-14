@@ -17,6 +17,7 @@ defmodule Deployable.Router do
     pipe_through :browser # Use the default browser stack
 
     get "/", PageController, :index
+    get "/who", PageController, :who
   end
 
   # Other scopes may use custom stacks.

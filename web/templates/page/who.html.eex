@@ -1,0 +1,7 @@
+<h1>WHO?????</h1>
+
+<h2>Me: <%= Node.self %></h2>
+<h2>Others:</h2>
+<%= for node <- Node.list do %>
+    <h3><%= node %></h3>
+<% end %>
