@@ -457,7 +457,7 @@
       "Properties": {
         "RouteTableId": {"Ref": "RouteTablePrivateApp"},
         "DestinationCidrBlock": "0.0.0.0/0",
-        "InstanceId": {"Ref": "NatServer"}
+        "NatGatewayId": {"Ref": "NatGateway"}
       }
     },
     "NetworkAclPrivateApp": {
@@ -563,29 +563,18 @@
         "CidrBlock": "10.0.0.0/16"
       }
     },
-    "NatServer": {
-      "Type": "AWS::EC2::Instance",
+    "EIP": {
+      "Type": "AWS::EC2::EIP",
       "Properties": {
-        "ImageId": {"Fn::FindInMap": ["EC2RegionMap", {"Ref": "AWS::Region"}, "AmazonLinuxNATAMIHVMEBSBacked64bit"]},
-        "InstanceType": "t2.micro",
-        "KeyName": {"Ref": "KeyName"},
-        "NetworkInterfaces": [{
-          "AssociatePublicIpAddress": "true",
-          "DeleteOnTermination": "true",
-          "SubnetId": {"Ref": "SubnetPublicNAT"},
-          "DeviceIndex": "0",
-          "GroupSet": [{"Ref": "SecurityGroup"}]
-        }],
-        "SourceDestCheck": "false",
-        "UserData": {"Fn::Base64": {"Fn::Join": ["", [
-          "#!/bin/bash -ex\n",
-          "/opt/aws/bin/cfn-signal --stack ", {"Ref": "AWS::StackName"}, " --resource NatServer --region ", {"Ref": "AWS::Region"}, "\n"
-        ]]}}
+        "Domain": "vpc"
       },
-      "CreationPolicy": {
-        "ResourceSignal": {
-          "Timeout": "PT5M"
-        }
+      "DependsOn": "VPCGatewayAttachment"
+    },
+    "NatGateway": {
+      "Type": "AWS::EC2::NatGateway",
+      "Properties": {
+        "AllocationId": {"Fn::GetAtt": ["EIP", "AllocationId"]},
+        "SubnetId": {"Ref": "SubnetPublicNAT"}
       },
       "DependsOn": "VPCGatewayAttachment"
     },
@@ -686,7 +675,7 @@
           "Timeout": "PT10M"
         }
       },
-      "DependsOn": "NatServer"
+      "DependsOn": "NatGateway"
     },
     "InstanceRoleInstanceProfile": {
       "Type": "AWS::IAM::InstanceProfile",
