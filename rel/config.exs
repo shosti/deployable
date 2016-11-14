@@ -22,6 +22,7 @@ end
 environment :prod do
   set include_erts: true
   set include_src: false
+  set vm_args: "rel/vm.args"
   set cookie: :"*ddupX)@EG0OFAOuL>?(lk-*@`uq5c1h*EmM(fLRUj/|*~iond&i)N$ZeqZjz>{R"
   set overlays: [
     {:template, "aws/appspec.yml.eex", "appspec.yml"},

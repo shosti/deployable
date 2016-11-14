@@ -2,4 +2,6 @@
 
 set -eo pipefail
 export HOME="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+export REPLACE_OS_VARS=true
+export HOST_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
 "$HOME"/bin/deployable ping
