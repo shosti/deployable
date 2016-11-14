@@ -3,7 +3,7 @@ defmodule Deployable.Mixfile do
 
   def project do
     [app: :deployable,
-     version: "0.0.8",
+     version: "0.0.9",
      elixir: "~> 1.2",
      elixirc_paths: elixirc_paths(Mix.env),
      compilers: [:phoenix, :gettext] ++ Mix.compilers,
@@ -34,6 +34,7 @@ defmodule Deployable.Mixfile do
      {:phoenix_live_reload, "~> 1.0", only: :dev},
      {:gettext, "~> 0.11"},
      {:distillery, "~> 0.10.1"},
+     {:remote_monitor, "~> 0.2.0", only: :dev},
      {:cowboy, "~> 1.0"}]
   end
 end
