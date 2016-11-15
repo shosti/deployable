@@ -23,6 +23,20 @@
       "Description": "Deployment group name for deployment",
       "Type": "String",
       "Default": "DeployableDG"
+    },
+		"IpForSSH": {
+			"Description": "Your public IP address to allow SSH access",
+			"Type": "String"
+		},
+    "DeployBucket": {
+      "Description": "S3 bucket for initial deployment code",
+      "Type": "String",
+      "Default": "deployable-code"
+    },
+    "DeployKey": {
+      "Description": "S3 key for initial deployment code",
+      "Type": "String",
+      "Default": "0.0.9.tar.gz"
     }
   },
   "Mappings": {
@@ -56,6 +70,23 @@
         "ToPort": "-1",
         "CidrIp": "0.0.0.0/0",
         "GroupId": {"Ref": "SecurityGroup"}
+      }
+    },
+    "SecurityGroupBastion": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Security group for SSH bastion host",
+        "VpcId": {"Ref": "VPC"}
+      }
+    },
+    "SecurityGroupBastionIngress": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "IpProtocol": "6",
+        "FromPort": "22",
+        "ToPort": "22",
+        "CidrIp": {"Fn::Join": ["", [{"Ref": "IpForSSH"}, "/32"]]},
+        "GroupId": {"Ref": "SecurityGroupBastion"}
       }
     },
     "VPC": {
@@ -843,13 +874,6 @@
         "CidrBlock": "10.0.0.0/16"
       }
     },
-    "EIP": {
-      "Type": "AWS::EC2::EIP",
-      "Properties": {
-        "Domain": "vpc"
-      },
-      "DependsOn": "VPCGatewayAttachment"
-    },
 		"NatServer": {
 			"Type": "AWS::EC2::Instance",
 			"Properties": {
@@ -887,7 +911,7 @@
           "DeleteOnTermination": "true",
           "SubnetId": {"Ref": "SubnetPublicSSHBastion"},
           "DeviceIndex": "0",
-          "GroupSet": [{"Ref": "SecurityGroup"}]
+          "GroupSet": [{"Ref": "SecurityGroupBastion"}]
         }]
       },
       "DependsOn": "VPCGatewayAttachment"
