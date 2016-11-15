@@ -693,6 +693,36 @@
         "CidrBlock": "10.0.5.0/24"
       }
     },
+    "NetworkAclEntryInPrivateAppInternalA": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "NetworkAclId": {"Ref": "NetworkAclPrivateAppA"},
+        "RuleNumber": "120",
+        "Protocol": "6",
+        "PortRange": {
+          "From": "0",
+          "To": "65535"
+        },
+        "RuleAction": "allow",
+        "Egress": "false",
+        "CidrBlock": "10.0.4.0/24"
+      }
+    },
+    "NetworkAclEntryInPrivateAppInternalB": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "NetworkAclId": {"Ref": "NetworkAclPrivateAppB"},
+        "RuleNumber": "120",
+        "Protocol": "6",
+        "PortRange": {
+          "From": "0",
+          "To": "65535"
+        },
+        "RuleAction": "allow",
+        "Egress": "false",
+        "CidrBlock": "10.0.3.0/24"
+      }
+    },
     "NetworkAclEntryInPrivateAppEphemeralPortsA": {
       "Type": "AWS::EC2::NetworkAclEntry",
       "Properties": {
@@ -700,8 +730,8 @@
         "RuleNumber": "200",
         "Protocol": "6",
         "PortRange": {
-          "From": "1024",
-          "To": "65535"
+          "From": "32768",
+          "To": "61000"
         },
         "RuleAction": "allow",
         "Egress": "false",
@@ -715,8 +745,8 @@
         "RuleNumber": "200",
         "Protocol": "6",
         "PortRange": {
-          "From": "1024",
-          "To": "65535"
+          "From": "32768",
+          "To": "61000"
         },
         "RuleAction": "allow",
         "Egress": "false",
