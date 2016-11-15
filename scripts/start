@@ -8,7 +8,7 @@ REGION=$(curl http://169.254.169.254/latest/dynamic/instance-identity/document|g
 export NODE_IPS=$(aws ec2 describe-instances \
                       --filters "Name=tag:AutoScalingGroupName,Values=Deployable" \
                       --output text \
-                      --query  "Reservations[0].Instances[*].PrivateIpAddress" \
+                      --query  "Reservations[*].Instances[*].PrivateIpAddress" \
                       --region "$REGION")
 
 export HOME="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
