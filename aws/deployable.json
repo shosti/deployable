@@ -1134,6 +1134,17 @@
         "AutoScalingGroups": [{"Ref": "AppServerAutoScalingGroup"}],
         "DeploymentGroupName": {"Ref": "DeploymentGroupName"},
         "DeploymentConfigName": "CodeDeployDefault.OneAtATime",
+        "Deployment": {
+          "Description": "Initial deploy",
+          "Revision": {
+            "RevisionType": "S3",
+            "S3Location": {
+              "Bucket": {"Ref": "DeployBucket"},
+              "Key": {"Ref": "DeployKey"},
+              "BundleType": "tgz"
+            }
+          }
+        },
         "ServiceRoleArn": {
           "Fn::GetAtt": [
             "CodeDeployTrustRole",
