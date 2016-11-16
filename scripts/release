@@ -2,6 +2,9 @@
 
 set -eo pipefail
 
+ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+source "${ROOT}/scripts/vars"
+
 if [ -n "$IN_DOCKER_BUILD" ]; then
     ./node_modules/brunch/bin/brunch b -p
     mix phoenix.digest
@@ -9,8 +12,7 @@ if [ -n "$IN_DOCKER_BUILD" ]; then
 else
     mix # get rid of compiler junk
     VERSION=$(mix run -e 'IO.puts Mix.Project.config[:version]')
-    DEST="$(mktemp -d)/deployable-$VERSION.tar.gz"
-    CODE_BUCKET=deployable-code
+    DEST="$(mktemp -d)/deployable-${VERSION}.tar.gz"
     DEPLOY_APP_NAME=DeployableApp
     DEPLOY_DEPLOYMENT_GROUP=DeployableDG
 
@@ -18,9 +20,11 @@ else
     CONTAINER=$(docker run -dt "deployable:$VERSION")
     docker cp "$CONTAINER:/build/rel/deployable/releases/$VERSION/deployable.tar.gz" "$DEST"
     docker kill "$CONTAINER"
-    aws s3 cp "$DEST" "s3://${CODE_BUCKET}/${VERSION}.tar.gz"
-    aws deploy create-deployment \
-        --application-name "$DEPLOY_APP_NAME" \
-        --deployment-group-name "$DEPLOY_DEPLOYMENT_GROUP" \
-        --s3-location bucket="${CODE_BUCKET}",key="${VERSION}.tar.gz",bundleType=tgz
+    aws s3 cp "$DEST" "s3://${DEPLOY_BUCKET}/${VERSION}.tar.gz"
+    if [ -z "$SKIP_DEPLOYMENT" ]; then
+        aws deploy create-deployment \
+            --application-name "$DEPLOY_APP_NAME" \
+            --deployment-group-name "$DEPLOY_DEPLOYMENT_GROUP" \
+            --s3-location bucket="${DEPLOY_BUCKET}",key="${VERSION}.tar.gz",bundleType=tgz
+    fi
 fi

@@ -1,0 +1,4 @@
+REGION=us-east-1
+DEPLOY_BUCKET=deployable-code
+KEY_PAIR_NAME=deployable
+STACK_NAME=deployable

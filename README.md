@@ -1,19 +1,37 @@
 # Deployable
 
-To start your Phoenix app:
+This is an example distributed Elixir app with a pre-baked CloudFormation VPC
+stack, ready for use on AWS. Some features:
 
-  * Install dependencies with `mix deps.get`
-  * Install Node.js dependencies with `npm install`
-  * Start Phoenix endpoint with `mix phoenix.server`
+- Automatic deployment with CodeDeploy
+- Building/releasing using distillery
+- Multiple availability zones for fault tolerance
+- Auto-scaling and load-balancing
+- Networked Elixir nodes with discovery
 
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
+Features I'm hoping to add:
 
-Ready to run in production? Please [check our deployment guides](http://www.phoenixframework.org/docs/deployment).
+- Live upgrades for the Elixir apps
+- Helpers for remote monitoring over SSH
+- Solutions for logging/monitoring/metrics
+- Database with RDS
 
-## Learn more
+## Usage
 
-  * Official website: http://www.phoenixframework.org/
-  * Guides: http://phoenixframework.org/docs/overview
-  * Docs: https://hexdocs.pm/phoenix
-  * Mailing list: http://groups.google.com/group/phoenix-talk
-  * Source: https://github.com/phoenixframework/phoenix
+- Mess with variables in `scripts/vars` (and/or the other scripts)
+- `scripts/create_stack` to make the initial release/stack (you can also use
+  this script to update the stack if you make changes to the template)
+- `scripts/release` to cut a new release and deploy (make sure the version is
+  incremented)
+
+## Caveat Emptor
+
+I am not an expert in AWS, networking, or security, so it is highly likely that
+this is not production-ready (I made it for the learning experience). Use with
+caution!
+
+## Acknowledgments
+
+The template for the CloudFormation stack is based on
+[sample code](https://github.com/AWSinAction/code) from *AWS In Action*
+(Manning, 2015).

@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+set -x
+
+ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+source "$ROOT/scripts/vars"
+MY_IP=$(curl -s http://ipinfo.io/ip)
+
+mix # to get rid of junk
+VERSION=$(mix run -e 'IO.puts Mix.Project.config[:version]')
+
+set +e
+aws cloudformation describe-stacks --stack-name "$STACK_NAME" > /dev/null
+if [[ "$?" -eq 0 ]]; then
+    CMD=update-stack
+else
+    CMD=create-stack
+fi
+
+aws s3 ls "$DEPLOY_BUCKET" | grep -q "${VERSION}.tar.gz"
+if [[ "$?" -ne 0 ]]; then
+    SKIP_DEPLOYMENT=true . "$ROOT/release"
+fi
+set -e
+
+aws cloudformation "$CMD" \
+    --stack-name "$STACK_NAME" \
+    --template-body "file://$ROOT/aws/deployable.json" \
+    --capabilities CAPABILITY_IAM \
+    --parameters \
+    "ParameterKey=IpForSSH,ParameterValue=${MY_IP}" \
+    "ParameterKey=KeyName,ParameterValue=${KEY_PAIR_NAME}" \
+    "ParameterKey=DeployBucket,ParameterValue=${DEPLOY_BUCKET}" \
+    "ParameterKey=DeployKey,ParameterValue=${VERSION}.tar.gz" \
+    --region "$REGION"
+
+while [[ $(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query Stacks[0].StackStatus --region "$REGION") != *"COMPLETE"* ]]; do
+    sleep 10
+done
+aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query Stacks[0].Outputs --region "$REGION"
