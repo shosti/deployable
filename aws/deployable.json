@@ -930,7 +930,7 @@
       "Type" : "AWS::ElasticLoadBalancingV2::TargetGroup",
       "Properties": {
         "HealthCheckIntervalSeconds": "10",
-        "HealthCheckPath": "/who",
+        "HealthCheckPath": "/status",
         "HealthCheckPort": "80",
         "HealthCheckProtocol": "HTTP",
         "HealthyThresholdCount": "3",

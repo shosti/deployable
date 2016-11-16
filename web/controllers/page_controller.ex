@@ -8,4 +8,8 @@ defmodule Deployable.PageController do
   def who(conn, _params) do
     render conn, "who.html"
   end
+
+  def status(conn, _params) do
+    text conn, "OK"
+  end
 end

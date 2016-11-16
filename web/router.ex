@@ -18,6 +18,7 @@ defmodule Deployable.Router do
 
     get "/", PageController, :index
     get "/who", PageController, :who
+    get "/status", PageController, :status
   end
 
   # Other scopes may use custom stacks.
