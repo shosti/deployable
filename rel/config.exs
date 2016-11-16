@@ -30,6 +30,7 @@ environment :prod do
     {:copy, "scripts/start", "scripts/start"},
     {:copy, "scripts/stop", "scripts/stop"},
     {:copy, "scripts/validate", "scripts/validate"},
+    {:copy, "scripts/after_install", "scripts/after_install"}
   ]
 end
 

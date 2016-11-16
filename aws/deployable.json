@@ -701,8 +701,8 @@
         "RuleNumber": "110",
         "Protocol": "6",
         "PortRange": {
-          "From": "80",
-          "To": "80"
+          "From": "4000",
+          "To": "4000"
         },
         "RuleAction": "allow",
         "Egress": "false",
@@ -716,8 +716,8 @@
         "RuleNumber": "110",
         "Protocol": "6",
         "PortRange": {
-          "From": "80",
-          "To": "80"
+          "From": "4000",
+          "To": "4000"
         },
         "RuleAction": "allow",
         "Egress": "false",
@@ -752,6 +752,36 @@
         "RuleAction": "allow",
         "Egress": "false",
         "CidrBlock": "10.0.3.0/24"
+      }
+    },
+    "NetworkAclEntryInNATPrivateAppHTTPA": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "NetworkAclId": {"Ref": "NetworkAclPrivateAppA"},
+        "RuleNumber": "130",
+        "Protocol": "6",
+        "PortRange": {
+          "From": "80",
+          "To": "80"
+        },
+        "RuleAction": "allow",
+        "Egress": "false",
+        "CidrBlock": "10.0.0.0/24"
+      }
+    },
+    "NetworkAclEntryInNATPrivateAppHTTPB": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "NetworkAclId": {"Ref": "NetworkAclPrivateAppB"},
+        "RuleNumber": "130",
+        "Protocol": "6",
+        "PortRange": {
+          "From": "80",
+          "To": "80"
+        },
+        "RuleAction": "allow",
+        "Egress": "false",
+        "CidrBlock": "10.0.0.0/24"
       }
     },
     "NetworkAclEntryInPrivateAppEphemeralPortsA": {
@@ -931,11 +961,11 @@
       "Properties": {
         "HealthCheckIntervalSeconds": "10",
         "HealthCheckPath": "/status",
-        "HealthCheckPort": "80",
+        "HealthCheckPort": "4000",
         "HealthCheckProtocol": "HTTP",
         "HealthyThresholdCount": "3",
         "Name": "DeployableAppTargetGroup",
-        "Port": "80",
+        "Port": "4000",
         "Protocol": "HTTP",
         "VpcId": {"Ref": "VPC"}
       }
@@ -956,11 +986,18 @@
       "Type": "AWS::AutoScaling::LaunchConfiguration",
       "Metadata": {
         "AWS::CloudFormation::Init": {
-          "services": {
-            "sysvinit": {
-              "codedeploy-agent": {
-                "enabled": "true",
-                "ensureRunning": "true"
+          "config": {
+            "services": {
+              "sysvinit": {
+                "codedeploy-agent": {
+                  "enabled": "true",
+                  "ensureRunning": "true"
+                }
+              }
+            },
+            "users": {
+              "deploy": {
+                "homeDir": "/deploy"
               }
             }
           }
@@ -977,14 +1014,17 @@
           "yum update -y\n",
           "yum install ruby -y\n",
           "yum install wget -y\n",
-          "# Make deploy dir.\n",
-          "mkdir /deploy\n",
           "# Install the AWS CodeDeploy Agent.\n",
           "cd /home/ec2-user/\n",
           "wget https://aws-codedeploy-", {"Ref": "AWS::Region"}, ".s3.amazonaws.com/latest/install\n",
           "chmod +x ./install\n",
           "./install auto\n",
+          "# Make deploy dir.\n",
+          "mkdir /deploy\n",
           "/opt/aws/bin/cfn-init -s ", {"Ref": "AWS::StackId"}, " -r AppServerLaunchConfiguration --region ", {"Ref": "AWS::Region"}, "\n",
+          "chown deploy:deploy /deploy\n",
+          "# Unfortunately CodeDeploy has trouble with nologin so we have to do some hacking...\n",
+          "chsh -s /bin/bash deploy\n",
           "# All is well, so signal success.\n",
           "/opt/aws/bin/cfn-signal --stack ", {"Ref": "AWS::StackName"}, " --resource AppServerAutoScalingGroup --region ", {"Ref": "AWS::Region"}, "\n"
         ]]}}

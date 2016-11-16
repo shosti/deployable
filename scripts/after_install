@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+set -exo pipefail
+
+ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+mkdir -p "${ROOT}/var"
+chown -R deploy:deploy "${ROOT}/var"

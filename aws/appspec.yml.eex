@@ -3,7 +3,12 @@ os: linux
 hooks:
   ApplicationStart:
     - location: scripts/start
+      runas: deploy
   ApplicationStop:
     - location: scripts/stop
+      runas: deploy
+  AfterInstall:
+    - location: scripts/after_install
   ValidateService:
     - location: scripts/validate
+      runas: deploy
