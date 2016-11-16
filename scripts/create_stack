@@ -23,9 +23,9 @@ else
     CMD=create-stack
 fi
 
-aws s3 ls "$DEPLOY_BUCKET" | grep -q "${VERSION}.tar.gz"
+aws s3 ls "s3://${DEPLOY_BUCKET}/${VERSION}.tar.gz" > /dev/null
 if [[ "$?" -ne 0 ]]; then
-    SKIP_DEPLOYMENT=true . "$ROOT/release"
+    SKIP_DEPLOYMENT=true . "$ROOT/scripts/release"
 fi
 set -e
 
