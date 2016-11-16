@@ -24,10 +24,10 @@
       "Type": "String",
       "Default": "DeployableDG"
     },
-		"IpForSSH": {
-			"Description": "Your public IP address to allow SSH access",
-			"Type": "String"
-		},
+    "IpForSSH": {
+      "Description": "Your public IP address to allow SSH access",
+      "Type": "String"
+    },
     "DeployBucket": {
       "Description": "S3 bucket for initial deployment code",
       "Type": "String",
@@ -874,32 +874,32 @@
         "CidrBlock": "10.0.0.0/16"
       }
     },
-		"NatServer": {
-			"Type": "AWS::EC2::Instance",
-			"Properties": {
-				"ImageId": {"Fn::FindInMap": ["EC2RegionMap", {"Ref": "AWS::Region"}, "AmazonLinuxNATAMIHVMEBSBacked64bit"]},
-				"InstanceType": "t2.micro",
-				"KeyName": {"Ref": "KeyName"},
-				"NetworkInterfaces": [{
-					"AssociatePublicIpAddress": "true",
-					"DeleteOnTermination": "true",
-					"SubnetId": {"Ref": "SubnetPublicNAT"},
-					"DeviceIndex": "0",
-					"GroupSet": [{"Ref": "SecurityGroup"}]
-				}],
-				"SourceDestCheck": "false",
-				"UserData": {"Fn::Base64": {"Fn::Join": ["", [
-					"#!/bin/bash -ex\n",
-					"/opt/aws/bin/cfn-signal --stack ", {"Ref": "AWS::StackName"}, " --resource NatServer --region ", {"Ref": "AWS::Region"}, "\n"
-				]]}}
-			},
-			"CreationPolicy": {
-				"ResourceSignal": {
-					"Timeout": "PT5M"
-				}
-			},
-			"DependsOn": "VPCGatewayAttachment"
-		},
+    "NatServer": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "ImageId": {"Fn::FindInMap": ["EC2RegionMap", {"Ref": "AWS::Region"}, "AmazonLinuxNATAMIHVMEBSBacked64bit"]},
+        "InstanceType": "t2.micro",
+        "KeyName": {"Ref": "KeyName"},
+        "NetworkInterfaces": [{
+          "AssociatePublicIpAddress": "true",
+          "DeleteOnTermination": "true",
+          "SubnetId": {"Ref": "SubnetPublicNAT"},
+          "DeviceIndex": "0",
+          "GroupSet": [{"Ref": "SecurityGroup"}]
+        }],
+        "SourceDestCheck": "false",
+        "UserData": {"Fn::Base64": {"Fn::Join": ["", [
+          "#!/bin/bash -ex\n",
+          "/opt/aws/bin/cfn-signal --stack ", {"Ref": "AWS::StackName"}, " --resource NatServer --region ", {"Ref": "AWS::Region"}, "\n"
+        ]]}}
+      },
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Timeout": "PT5M"
+        }
+      },
+      "DependsOn": "VPCGatewayAttachment"
+    },
     "BastionHost": {
       "Type": "AWS::EC2::Instance",
       "Properties": {
@@ -917,27 +917,40 @@
       "DependsOn": "VPCGatewayAttachment"
     },
     "LoadBalancer": {
-      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
       "Properties": {
-        "Subnets": [{"Ref": "SubnetPublicLoadBalancerA"}, {"Ref": "SubnetPublicLoadBalancerB"}],
-        "LoadBalancerName": "elb",
-        "Listeners": [{
-          "InstancePort": "80",
-          "InstanceProtocol": "HTTP",
-          "LoadBalancerPort": "80",
-          "Protocol": "HTTP"
-        }],
-        "HealthCheck": {
-          "HealthyThreshold": "3",
-          "Interval": "10",
-          "Target": "HTTP:80/who",
-          "Timeout": "5",
-          "UnhealthyThreshold": "2"
-        },
+        "Name": "LoadBalancer",
+        "Scheme": "internet-facing",
         "SecurityGroups": [{"Ref": "SecurityGroup"}],
-        "Scheme": "internet-facing"
+        "Subnets": [{"Ref": "SubnetPublicLoadBalancerA"}, {"Ref": "SubnetPublicLoadBalancerB"}]
       },
       "DependsOn": "VPCGatewayAttachment"
+    },
+    "LoadBalancerAppTargetGroup": {
+      "Type" : "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "HealthCheckIntervalSeconds": "10",
+        "HealthCheckPath": "/who",
+        "HealthCheckPort": "80",
+        "HealthCheckProtocol": "HTTP",
+        "HealthyThresholdCount": "3",
+        "Name": "DeployableAppTargetGroup",
+        "Port": "80",
+        "Protocol": "HTTP",
+        "VpcId": {"Ref": "VPC"}
+      }
+    },
+    "LoadBalancerListener": {
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+      "Properties": {
+        "DefaultActions": [{
+          "TargetGroupArn": {"Ref": "LoadBalancerAppTargetGroup"},
+          "Type": "forward"
+        }],
+        "LoadBalancerArn": {"Ref": "LoadBalancer"},
+        "Port": "80",
+        "Protocol": "HTTP"
+      }
     },
     "AppServerLaunchConfiguration": {
       "Type": "AWS::AutoScaling::LaunchConfiguration",
@@ -985,12 +998,12 @@
     "AppServerAutoScalingGroup": {
       "Type": "AWS::AutoScaling::AutoScalingGroup",
       "Properties": {
-        "LoadBalancerNames": [{"Ref": "LoadBalancer"}],
         "LaunchConfigurationName": {"Ref": "AppServerLaunchConfiguration"},
         "MinSize": {"Ref": "NumberOfServers"},
         "MaxSize": {"Ref": "NumberOfServers"},
         "DesiredCapacity": {"Ref": "NumberOfServers"},
         "VPCZoneIdentifier": [{"Ref": "SubnetPrivateAppA"}, {"Ref": "SubnetPrivateAppB"}],
+        "TargetGroupARNs": [{"Ref": "LoadBalancerAppTargetGroup"}],
         "Tags": [{
           "Key": "AutoScalingGroupName",
           "Value": "Deployable",
