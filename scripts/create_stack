@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 set -eo pipefail
-set -x
 
 ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 source "$ROOT/scripts/vars"
@@ -10,8 +9,14 @@ MY_IP=$(curl -s http://ipinfo.io/ip)
 mix # to get rid of junk
 VERSION=$(mix run -e 'IO.puts Mix.Project.config[:version]')
 
+get_stack_status() {
+    aws cloudformation describe-stacks --stack-name "$STACK_NAME" \
+        --query Stacks[0].StackStatus \
+        --region "$REGION"
+}
+
 set +e
-aws cloudformation describe-stacks --stack-name "$STACK_NAME" > /dev/null
+aws cloudformation describe-stacks --stack-name "$STACK_NAME" > /dev/null 2>&1
 if [[ "$?" -eq 0 ]]; then
     CMD=update-stack
 else
@@ -35,7 +40,8 @@ aws cloudformation "$CMD" \
     "ParameterKey=DeployKey,ParameterValue=${VERSION}.tar.gz" \
     --region "$REGION"
 
-while [[ $(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query Stacks[0].StackStatus --region "$REGION") != *"COMPLETE"* ]]; do
+while [[ $(get_stack_status) != *"COMPLETE"* ]]; do
+    echo "Stack status: $(get_stack_status)"
     sleep 10
 done
 aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query Stacks[0].Outputs --region "$REGION"
