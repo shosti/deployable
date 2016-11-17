@@ -15,19 +15,15 @@ get_stack_status() {
         --region "$REGION"
 }
 
-set +e
-aws cloudformation describe-stacks --stack-name "$STACK_NAME" > /dev/null 2>&1
-if [[ "$?" -eq 0 ]]; then
+if aws cloudformation describe-stacks --stack-name "$STACK_NAME" > /dev/null 2>&1; then
     CMD=update-stack
 else
     CMD=create-stack
 fi
 
-aws s3 ls "s3://${DEPLOY_BUCKET}/${VERSION}.tar.gz" > /dev/null
-if [[ "$?" -ne 0 ]]; then
+if aws s3 ls "s3://${DEPLOY_BUCKET}/${VERSION}.tar.gz" > /dev/null; then
     SKIP_DEPLOYMENT=true . "$ROOT/scripts/release"
 fi
-set -e
 
 aws cloudformation "$CMD" \
     --stack-name "$STACK_NAME" \
@@ -44,4 +40,4 @@ while [[ $(get_stack_status) != *"COMPLETE"* ]]; do
     echo "Stack status: $(get_stack_status)"
     sleep 10
 done
-aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query Stacks[0].Outputs --region "$REGION"
+aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[0].Outputs" --region "$REGION"

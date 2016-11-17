@@ -2,29 +2,49 @@
 
 set -eo pipefail
 
+DEPLOY_APP_NAME=DeployableApp
+DEPLOY_DEPLOYMENT_GROUP=DeployableDG
 ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 source "${ROOT}/scripts/vars"
 
 if [ -n "$IN_DOCKER_BUILD" ]; then
     ./node_modules/brunch/bin/brunch b -p
     mix phoenix.digest
-    mix release --env=prod
-else
-    mix # get rid of compiler junk
-    VERSION=$(mix run -e 'IO.puts Mix.Project.config[:version]')
-    DEST="$(mktemp -d)/deployable-${VERSION}.tar.gz"
-    DEPLOY_APP_NAME=DeployableApp
-    DEPLOY_DEPLOYMENT_GROUP=DeployableDG
+    if [ -e "${ROOT}/NOUPGRADE" ]; then
+        mix release --env=prod
+    else
+        mix release --env=prod --upgrade
+    fi
+    exit 0
+fi
 
+mix # get rid of compiler junk
+VERSION=$(mix run -e 'IO.puts Mix.Project.config[:version]')
+
+make_release() {
+    if [ -n "$SKIP_UPGRADE" ]; then
+        touch "${ROOT}/NOUPGRADE"
+    fi
+
+    DEST="$(mktemp -d)/deployable-${VERSION}.tar.gz"
     docker build . -t "deployable:$VERSION"
     CONTAINER=$(docker run -dt "deployable:$VERSION")
     docker cp "$CONTAINER:/build/rel/deployable/releases/$VERSION/deployable.tar.gz" "$DEST"
     docker kill "$CONTAINER"
     aws s3 cp "$DEST" "s3://${DEPLOY_BUCKET}/${VERSION}.tar.gz"
-    if [ -z "$SKIP_DEPLOYMENT" ]; then
-        aws deploy create-deployment \
+    rm -f "${ROOT}/NOUPGRADE"
+}
+
+if aws s3 ls "s3://${DEPLOY_BUCKET}/${VERSION}.tar.gz" > /dev/null; then
+    echo "Release build already exists for ${VERSION}"
+else
+    echo "Building release for ${VERSION}..."
+    make_release
+fi
+
+if [ -z "$SKIP_DEPLOYMENT" ]; then
+    aws deploy create-deployment \
             --application-name "$DEPLOY_APP_NAME" \
             --deployment-group-name "$DEPLOY_DEPLOYMENT_GROUP" \
-            --s3-location bucket="${DEPLOY_BUCKET}",key="${VERSION}.tar.gz",bundleType=tgz
-    fi
+            --s3-location "bucket=${DEPLOY_BUCKET},key=${VERSION}.tar.gz,bundleType=tgz"
 fi

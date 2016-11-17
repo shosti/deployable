@@ -8,10 +8,10 @@ stack, ready for use on AWS. Some features:
 - Multiple availability zones for fault tolerance
 - Auto-scaling and load-balancing
 - Networked Elixir nodes with discovery
+- Live upgrades for the Elixir apps
 
 Features I'm hoping to add:
 
-- Live upgrades for the Elixir apps
 - Helpers for remote monitoring over SSH
 - Solutions for logging/monitoring/metrics
 - Database with RDS

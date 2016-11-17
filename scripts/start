@@ -3,16 +3,49 @@
 set -exo pipefail
 
 # A bunch of AWS preliminaries
-
-REGION=$(curl http://169.254.169.254/latest/dynamic/instance-identity/document|grep region|awk -F\" '{print $4}')
+REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document|grep region|awk -F\" '{print $4}')
 export NODE_IPS=$(aws ec2 describe-instances \
                       --filters "Name=tag:AutoScalingGroupName,Values=Deployable" \
                       --output text \
                       --query  "Reservations[*].Instances[*].PrivateIpAddress" \
                       --region "$REGION")
-
-export ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 export PORT=4000
 export REPLACE_OS_VARS=true
 export HOST_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
-"$ROOT"/bin/deployable start
+
+ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+# CodeDeploy strangely keeps the tarball in the parent directory. Even more
+# strangely, it's still gzipped but doesn't have a .gz filename.
+TARBALL="${ROOT}/../bundle.tar"
+VERSION=$(ls "${ROOT}/releases" | grep -E '[0.9]+\.[0.9]+\.[0-9]+' | head -1)
+
+install_version() {
+    mkdir -p "${HOME}/releases/${VERSION}"
+    cp "$TARBALL" "${HOME}/releases/${VERSION}/deployable.tar.gz"
+}
+
+try_upgrade() {
+    install_version
+
+    set +e
+    "${ROOT}/bin/deployable" upgrade "$VERSION"
+    if [[ "$?" -ne 0 ]]; then
+        # restart as a fallback, since upgrades are finnicky
+        "${ROOT}/bin/deployable" stop
+        "${ROOT}/bin/deployable" start
+    fi
+    set -e
+}
+
+initial_app_start() {
+    # We start the app from the deploy home directory so upgrade releases know
+    # where to look.
+    tar xzf "$TARBALL" -C "$HOME"
+    "${HOME}/bin/deployable" start
+}
+
+if [[ $("${ROOT}/bin/deployable" ping) == *"pong"* ]]; then
+    try_upgrade
+else
+    initial_app_start
+fi
