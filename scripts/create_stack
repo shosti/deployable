@@ -3,7 +3,8 @@
 set -eo pipefail
 
 ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
-source "$ROOT/scripts/vars"
+# shellcheck source=scripts/vars
+. "$ROOT/scripts/vars"
 MY_IP=$(curl -s http://ipinfo.io/ip)
 
 mix # to get rid of junk
@@ -22,6 +23,7 @@ else
 fi
 
 if aws s3 ls "s3://${DEPLOY_BUCKET}/${VERSION}.tar.gz" > /dev/null; then
+    # shellcheck source=scripts/vars
     SKIP_DEPLOYMENT=true . "$ROOT/scripts/release"
 fi
 

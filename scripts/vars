@@ -1,4 +1,11 @@
+#!/usr/bin/env bash
+
 REGION=us-east-1
 DEPLOY_BUCKET=deployable-code
 KEY_PAIR_NAME=deployable
 STACK_NAME=deployable
+
+export REGION
+export DEPLOY_BUCKET
+export KEY_PAIR_NAME
+export STACK_NAME

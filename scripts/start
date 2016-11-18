@@ -4,19 +4,22 @@ set -exo pipefail
 
 # A bunch of AWS preliminaries
 REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document|grep region|awk -F\" '{print $4}')
-export NODE_IPS=$(aws ec2 describe-instances \
+NODE_IPS=$(aws ec2 describe-instances \
                       --filters "Name=tag:AutoScalingGroupName,Values=Deployable" \
                       --output text \
                       --query  "Reservations[*].Instances[*].PrivateIpAddress" \
                       --region "$REGION")
+export NODE_IPS
+HOST_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+export HOST_IP
 export PORT=4000
 export REPLACE_OS_VARS=true
-export HOST_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
 
 ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 # CodeDeploy strangely keeps the tarball in the parent directory. Even more
 # strangely, it's still gzipped but doesn't have a .gz filename.
 TARBALL="${ROOT}/../bundle.tar"
+# shellcheck disable=SC2010
 VERSION=$(ls "${ROOT}/releases" | grep -E '[0.9]+\.[0.9]+\.[0-9]+' | head -1)
 
 install_version() {
@@ -27,14 +30,11 @@ install_version() {
 try_upgrade() {
     install_version
 
-    set +e
-    "${ROOT}/bin/deployable" upgrade "$VERSION"
-    if [[ "$?" -ne 0 ]]; then
+    if ! "${ROOT}/bin/deployable" upgrade "$VERSION"; then
         # restart as a fallback, since upgrades are finnicky
         "${ROOT}/bin/deployable" stop
         "${ROOT}/bin/deployable" start
     fi
-    set -e
 }
 
 initial_app_start() {
