@@ -4,8 +4,8 @@ set -eo pipefail
 
 ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 # shellcheck source=script/vars
-. "$ROOT/script/vars"
-MY_IP=$(curl -s http://ipinfo.io/ip)
+. "${ROOT}/script/vars"
+MY_IP=$(curl -s https://ipinfo.io/ip)
 
 mix # to get rid of junk
 VERSION=$(mix run -e 'IO.puts Mix.Project.config[:version]')
