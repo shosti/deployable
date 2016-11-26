@@ -33,7 +33,7 @@ try_upgrade() {
     if ! "${ROOT}/bin/deployable" upgrade "$VERSION"; then
         # restart as a fallback, since upgrades are finnicky
         "${ROOT}/bin/deployable" stop
-        "${ROOT}/bin/deployable" start
+        initial_app_start
     fi
 }
 
