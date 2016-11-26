@@ -5,8 +5,8 @@ set -eo pipefail
 DEPLOY_APP_NAME=DeployableApp
 DEPLOY_DEPLOYMENT_GROUP=DeployableDG
 ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
-# shellcheck source=scripts/vars
-. "${ROOT}/scripts/vars"
+# shellcheck source=script/vars
+. "${ROOT}/script/vars"
 
 if [ -n "$IN_DOCKER_BUILD" ]; then
     ./node_modules/brunch/bin/brunch b -p

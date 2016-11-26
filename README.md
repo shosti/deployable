@@ -18,10 +18,10 @@ Features I'm hoping to add:
 
 ## Usage
 
-- Mess with variables in `scripts/vars` (and/or the other scripts)
-- `scripts/create_stack` to make the initial release/stack (you can also use
+- Mess with variables in `script/vars` (and/or the other scripts)
+- `script/create_stack` to make the initial release/stack (you can also use
   this script to update the stack if you make changes to the template)
-- `scripts/release` to cut a new release and deploy (make sure the version is
+- `script/release` to cut a new release and deploy (make sure the version is
   incremented)
 
 ## Caveat Emptor

@@ -26,11 +26,11 @@ environment :prod do
   set cookie: :"*ddupX)@EG0OFAOuL>?(lk-*@`uq5c1h*EmM(fLRUj/|*~iond&i)N$ZeqZjz>{R"
   set overlays: [
     {:template, "aws/appspec.yml.eex", "appspec.yml"},
-    {:mkdir, "scripts"},
-    {:copy, "scripts/start", "scripts/start"},
-    {:copy, "scripts/stop", "scripts/stop"},
-    {:copy, "scripts/validate", "scripts/validate"},
-    {:copy, "scripts/after_install", "scripts/after_install"}
+    {:mkdir, "script"},
+    {:copy, "script/start", "script/start"},
+    {:copy, "script/stop", "script/stop"},
+    {:copy, "script/validate", "script/validate"},
+    {:copy, "script/after_install", "script/after_install"}
   ]
 end
 

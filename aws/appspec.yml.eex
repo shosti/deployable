@@ -2,13 +2,13 @@ version: 0.0
 os: linux
 hooks:
   ApplicationStart:
-    - location: scripts/start
+    - location: script/start
       runas: deploy
   ApplicationStop:
-    - location: scripts/stop
+    - location: script/stop
       runas: deploy
   AfterInstall:
-    - location: scripts/after_install
+    - location: script/after_install
   ValidateService:
-    - location: scripts/validate
+    - location: script/validate
       runas: deploy

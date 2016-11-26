@@ -24,5 +24,5 @@ RUN mix local.rebar --force
 COPY . /build
 RUN mix deps.get
 RUN npm install
-RUN scripts/release
+RUN script/release
 CMD /bin/bash
