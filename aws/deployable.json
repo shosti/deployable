@@ -41,7 +41,7 @@
   },
   "Mappings": {
     "EC2RegionMap": {
-      "us-east-1": {"AmazonLinuxAMIHVMEBSBacked64bit": "ami-b73b63a0", "AmazonLinuxNATAMIHVMEBSBacked64bit": "ami-863b6391"}
+      "us-east-1": {"UbuntuXenial": "ami-45b69e52", "AmazonLinuxNAT": "ami-863b6391"}
     }
   },
   "Resources": {
@@ -907,7 +907,7 @@
     "NatServer": {
       "Type": "AWS::EC2::Instance",
       "Properties": {
-        "ImageId": {"Fn::FindInMap": ["EC2RegionMap", {"Ref": "AWS::Region"}, "AmazonLinuxNATAMIHVMEBSBacked64bit"]},
+        "ImageId": {"Fn::FindInMap": ["EC2RegionMap", {"Ref": "AWS::Region"}, "AmazonLinuxNAT"]},
         "InstanceType": "t2.micro",
         "KeyName": {"Ref": "KeyName"},
         "NetworkInterfaces": [{
@@ -933,7 +933,7 @@
     "BastionHost": {
       "Type": "AWS::EC2::Instance",
       "Properties": {
-        "ImageId": {"Fn::FindInMap": ["EC2RegionMap", {"Ref": "AWS::Region"}, "AmazonLinuxAMIHVMEBSBacked64bit"]},
+        "ImageId": {"Fn::FindInMap": ["EC2RegionMap", {"Ref": "AWS::Region"}, "UbuntuXenial"]},
         "InstanceType": "t2.micro",
         "KeyName": {"Ref": "KeyName"},
         "NetworkInterfaces": [{
@@ -1004,29 +1004,33 @@
         }
       },
       "Properties": {
-        "ImageId": {"Fn::FindInMap": ["EC2RegionMap", {"Ref": "AWS::Region"}, "AmazonLinuxAMIHVMEBSBacked64bit"]},
+        "ImageId": {"Fn::FindInMap": ["EC2RegionMap", {"Ref": "AWS::Region"}, "UbuntuXenial"]},
         "InstanceType": "t2.micro",
         "SecurityGroups": [{"Ref": "SecurityGroup"}],
         "KeyName": {"Ref": "KeyName"},
         "IamInstanceProfile": {"Ref": "InstanceRoleInstanceProfile"},
         "UserData": {"Fn::Base64": {"Fn::Join": ["", [
           "#!/bin/bash -ex\n",
-          "yum update -y\n",
-          "yum install ruby -y\n",
-          "yum install wget -y\n",
+          "apt-get update -y\n",
+          "apt-get upgrade -y\n",
+          "apt-get install wget ruby awscli python-pip -y\n",
+          "# Install CloudFormation helpers\n",
+          "cd /home/ubuntu\n",
+          "mkdir aws-cfn-bootstrap-latest\n",
+          "curl https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz | tar xz -C aws-cfn-bootstrap-latest --strip-components 1\n",
+          "easy_install aws-cfn-bootstrap-latest\n",
           "# Install the AWS CodeDeploy Agent.\n",
-          "cd /home/ec2-user/\n",
           "wget https://aws-codedeploy-", {"Ref": "AWS::Region"}, ".s3.amazonaws.com/latest/install\n",
           "chmod +x ./install\n",
           "./install auto\n",
           "# Make deploy dir.\n",
           "mkdir /deploy\n",
-          "/opt/aws/bin/cfn-init -s ", {"Ref": "AWS::StackId"}, " -r AppServerLaunchConfiguration --region ", {"Ref": "AWS::Region"}, "\n",
+          "cfn-init -s ", {"Ref": "AWS::StackId"}, " -r AppServerLaunchConfiguration --region ", {"Ref": "AWS::Region"}, "\n",
           "chown deploy:deploy /deploy\n",
           "# Unfortunately CodeDeploy has trouble with nologin so we have to do some hacking...\n",
           "chsh -s /bin/bash deploy\n",
           "# All is well, so signal success.\n",
-          "/opt/aws/bin/cfn-signal --stack ", {"Ref": "AWS::StackName"}, " --resource AppServerAutoScalingGroup --region ", {"Ref": "AWS::Region"}, "\n"
+          "cfn-signal --stack ", {"Ref": "AWS::StackName"}, " --resource AppServerAutoScalingGroup --region ", {"Ref": "AWS::Region"}, "\n"
         ]]}}
       },
       "CreationPolicy": {
@@ -1210,7 +1214,7 @@
   "Outputs": {
     "BastionHostPublicName": {
       "Value": {"Fn::GetAtt": ["BastionHost", "PublicDnsName"]},
-      "Description": "connect via SSH as user ec2-user"
+      "Description": "connect via SSH as user ubuntu"
     },
     "URL": {
       "Value": {"Fn::Join": ["", ["http://", {"Fn::GetAtt": ["LoadBalancer", "DNSName"]}]]},

@@ -1,8 +1,12 @@
-FROM lambdalinux/baseimage-amzn:2016.09-000
-
+FROM ubuntu:xenial
 MAINTAINER Emanuel Evans <mail@emanuel.industries>
-RUN yum update -y
-RUN yum install make automake gcc gcc-c++ kernel-devel git curl ncurses-devel openssl-devel zip unzip tar -y
+RUN locale-gen en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+RUN apt-get update -y
+RUN apt-get upgrade -y
+RUN apt-get install build-essential curl autoconf git libncurses5-dev libssl-dev zip -y
 RUN mkdir /build
 WORKDIR /build
 RUN git clone https://github.com/asdf-vm/asdf.git /.asdf --branch v0.2.0
@@ -14,9 +18,6 @@ COPY .tool-versions /build/.tool-versions
 RUN erlang_version=$(awk '/erlang/ { print $2 }' /build/.tool-versions) && asdf install erlang ${erlang_version}
 RUN node_version=$(awk '/nodejs/ { print $2 }' /build/.tool-versions) && asdf install nodejs ${node_version}
 RUN elixir_version=$(awk '/elixir/ { print $2 }' /build/.tool-versions) && asdf install elixir ${elixir_version}
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
 ENV MIX_ENV=prod
 ENV IN_DOCKER_BUILD=1
 RUN mix local.hex --force
