@@ -37,6 +37,36 @@
       "Description": "S3 key for initial deployment code",
       "Type": "String",
       "Default": "0.0.9.tar.gz"
+    },
+    "BastionSubnetCidrBlock": {
+      "Description": "CIDR block for bastion host subnet",
+      "Type": "String",
+      "Default": "10.0.1.0/24"
+    },
+    "PrivateAppSubnetACidrBlock": {
+      "Description": "CIDR block for private app subnet A",
+      "Type": "String",
+      "Default": "10.0.3.0/24",
+    },
+    "PrivateAppSubnetBCidrBlock": {
+      "Description": "CIDR block for private app subnet B",
+      "Type": "String",
+      "Default": "10.0.4.0/24",
+    },
+    "NATSubnetCidrBlock": {
+      "Description": "CIDR block for NAT server subnet",
+      "Type": "String",
+      "Default": "10.0.0.0/24"
+    },
+    "LoadBalancerSubnetACidrBlock": {
+      "Description": "CIDR block for load balancer subnet A",
+      "Type": "String",
+      "Default": "10.0.2.0/24"
+    },
+    "LoadBalancerSubnetBCidrBlock": {
+      "Description": "CIDR block for load balancer subnet B",
+      "Type": "String",
+      "Default": "10.0.5.0/24"
     }
   },
   "Mappings": {
@@ -45,31 +75,31 @@
     }
   },
   "Resources": {
-    "SecurityGroup": {
+    "SecurityGroupApp": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
-        "GroupDescription": "My security group",
+        "GroupDescription": "Permissive security group for instances in private subnets",
         "VpcId": {"Ref": "VPC"}
       }
     },
-    "SecurityGroupIngress": {
+    "SecurityGroupAppIngress": {
       "Type": "AWS::EC2::SecurityGroupIngress",
       "Properties":{
         "IpProtocol": "-1",
         "FromPort": "-1",
         "ToPort": "-1",
         "CidrIp": "0.0.0.0/0",
-        "GroupId": {"Ref": "SecurityGroup"}
+        "GroupId": {"Ref": "SecurityGroupApp"}
       }
     },
-    "SecurityGroupEgress": {
+    "SecurityGroupAppEgress": {
       "Type": "AWS::EC2::SecurityGroupEgress",
       "Properties":{
         "IpProtocol": "-1",
         "FromPort": "-1",
         "ToPort": "-1",
         "CidrIp": "0.0.0.0/0",
-        "GroupId": {"Ref": "SecurityGroup"}
+        "GroupId": {"Ref": "SecurityGroupApp"}
       }
     },
     "SecurityGroupBastion": {
@@ -87,6 +117,80 @@
         "ToPort": "22",
         "CidrIp": {"Fn::Join": ["", [{"Ref": "IpForSSH"}, "/32"]]},
         "GroupId": {"Ref": "SecurityGroupBastion"}
+      }
+    },
+    "SecurityGroupNAT": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Security group for NAT server",
+        "VpcId": {"Ref": "VPC"}
+      }
+    },
+    "SecurityGroupNATIngressHTTP": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "IpProtocol": "6",
+        "FromPort": "80",
+        "ToPort": "80",
+        "SourceSecurityGroupId": {"Ref": "SecurityGroupApp"},
+        "GroupId": {"Ref": "SecurityGroupNAT"}
+      }
+    },
+    "SecurityGroupNATIngressHTTPS": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "IpProtocol": "6",
+        "FromPort": "443",
+        "ToPort": "443",
+        "SourceSecurityGroupId": {"Ref": "SecurityGroupApp"},
+        "GroupId": {"Ref": "SecurityGroupNAT"}
+      }
+    },
+    "SecurityGroupNATEgressHTTP": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties":{
+        "IpProtocol": "6",
+        "FromPort": "80",
+        "ToPort": "80",
+        "CidrIp": "0.0.0.0/0",
+        "GroupId": {"Ref": "SecurityGroupNAT"}
+      }
+    },
+    "SecurityGroupNATEgressHTTPS": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties":{
+        "IpProtocol": "6",
+        "FromPort": "443",
+        "ToPort": "443",
+        "CidrIp": "0.0.0.0/0",
+        "GroupId": {"Ref": "SecurityGroupNAT"}
+      }
+    },
+    "SecurityGroupLoadBalancer": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Security group for public load balancer",
+        "VpcId": {"Ref": "VPC"}
+      }
+    },
+    "SecurityGroupLoadBalancerIngressHTTP": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "IpProtocol": "6",
+        "FromPort": "80",
+        "ToPort": "80",
+        "CidrIp": "0.0.0.0/0",
+        "GroupId": {"Ref": "SecurityGroupLoadBalancer"}
+      }
+    },
+    "SecurityGroupLoadBalancerEgress": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties":{
+        "IpProtocol": "6",
+        "FromPort": "4000",
+        "ToPort": "4000",
+        "GroupId": {"Ref": "SecurityGroupLoadBalancer"},
+        "DestinationSecurityGroupId": {"Ref": "SecurityGroupApp"}
       }
     },
     "VPC": {
@@ -112,7 +216,7 @@
       "Type": "AWS::EC2::Subnet",
       "Properties": {
         "AvailabilityZone": {"Fn::Select": ["0", {"Fn::GetAZs": ""}]},
-        "CidrBlock": "10.0.0.0/24",
+        "CidrBlock": {"Ref": "NATSubnetCidrBlock"},
         "VpcId": {"Ref": "VPC"}
       }
     },
@@ -138,114 +242,11 @@
       },
       "DependsOn": "VPCGatewayAttachment"
     },
-    "NetworkAclPublicNAT": {
-      "Type": "AWS::EC2::NetworkAcl",
-      "Properties": {
-        "VpcId": {"Ref": "VPC"}
-      }
-    },
-    "SubnetNetworkAclAssociationPublicNAT": {
-      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
-      "Properties": {
-        "SubnetId": {"Ref": "SubnetPublicNAT"},
-        "NetworkAclId": {"Ref": "NetworkAclPublicNAT"}
-      }
-    },
-    "NetworkAclEntryInPublicNATHTTP": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicNAT"},
-        "RuleNumber": "100",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "80",
-          "To": "80"
-        },
-        "RuleAction": "allow",
-        "Egress": "false",
-        "CidrBlock": "10.0.0.0/16"
-      }
-    },
-    "NetworkAclEntryInPublicNATHTTPS": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicNAT"},
-        "RuleNumber": "110",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "443",
-          "To": "443"
-        },
-        "RuleAction": "allow",
-        "Egress": "false",
-        "CidrBlock": "10.0.0.0/16"
-      }
-    },
-    "NetworkAclEntryInPublicNATEphemeralPorts": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicNAT"},
-        "RuleNumber": "200",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "1024",
-          "To": "65535"
-        },
-        "RuleAction": "allow",
-        "Egress": "false",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
-    "NetworkAclEntryOutPublicNATHTTP": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicNAT"},
-        "RuleNumber": "100",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "80",
-          "To": "80"
-        },
-        "RuleAction": "allow",
-        "Egress": "true",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
-    "NetworkAclEntryOutPublicNATHTTPS": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicNAT"},
-        "RuleNumber": "110",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "443",
-          "To": "443"
-        },
-        "RuleAction": "allow",
-        "Egress": "true",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
-    "NetworkAclEntryOutPublicNATEphemeralPorts": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicNAT"},
-        "RuleNumber": "200",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "1024",
-          "To": "65535"
-        },
-        "RuleAction": "allow",
-        "Egress": "true",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
     "SubnetPublicSSHBastion": {
       "Type": "AWS::EC2::Subnet",
       "Properties": {
         "AvailabilityZone": {"Fn::Select": ["0", {"Fn::GetAZs": ""}]},
-        "CidrBlock": "10.0.1.0/24",
+        "CidrBlock": {"Ref": "BastionSubnetCidrBlock"},
         "VpcId": {"Ref": "VPC"}
       }
     },
@@ -271,84 +272,11 @@
       },
       "DependsOn": "VPCGatewayAttachment"
     },
-    "NetworkAclPublicSSHBastion": {
-      "Type": "AWS::EC2::NetworkAcl",
-      "Properties": {
-        "VpcId": {"Ref": "VPC"}
-      }
-    },
-    "SubnetNetworkAclAssociationPublicSSHBastion": {
-      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
-      "Properties": {
-        "SubnetId": {"Ref": "SubnetPublicSSHBastion"},
-        "NetworkAclId": {"Ref": "NetworkAclPublicSSHBastion"}
-      }
-    },
-    "NetworkAclEntryInPublicSSHBastionSSH": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicSSHBastion"},
-        "RuleNumber": "100",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "22",
-          "To": "22"
-        },
-        "RuleAction": "allow",
-        "Egress": "false",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
-    "NetworkAclEntryInPublicSSHBastionEphemeralPorts": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicSSHBastion"},
-        "RuleNumber": "200",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "1024",
-          "To": "65535"
-        },
-        "RuleAction": "allow",
-        "Egress": "false",
-        "CidrBlock": "10.0.0.0/16"
-      }
-    },
-    "NetworkAclEntryOutPublicSSHBastionSSH": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicSSHBastion"},
-        "RuleNumber": "100",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "22",
-          "To": "22"
-        },
-        "RuleAction": "allow",
-        "Egress": "true",
-        "CidrBlock": "10.0.0.0/16"
-      }
-    },
-    "NetworkAclEntryOutPublicSSHBastionEphemeralPorts": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicSSHBastion"},
-        "RuleNumber": "200",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "1024",
-          "To": "65535"
-        },
-        "RuleAction": "allow",
-        "Egress": "true",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
     "SubnetPublicLoadBalancerA": {
       "Type": "AWS::EC2::Subnet",
       "Properties": {
         "AvailabilityZone": {"Fn::Select": ["0", {"Fn::GetAZs": ""}]},
-        "CidrBlock": "10.0.2.0/24",
+        "CidrBlock": {"Ref": "LoadBalancerSubnetACidrBlock"},
         "VpcId": {"Ref": "VPC"}
       }
     },
@@ -356,7 +284,7 @@
       "Type": "AWS::EC2::Subnet",
       "Properties": {
         "AvailabilityZone": {"Fn::Select": ["1", {"Fn::GetAZs": ""}]},
-        "CidrBlock": "10.0.5.0/24",
+        "CidrBlock": {"Ref": "LoadBalancerSubnetBCidrBlock"},
         "VpcId": {"Ref": "VPC"}
       }
     },
@@ -404,187 +332,11 @@
       },
       "DependsOn": "VPCGatewayAttachment"
     },
-    "NetworkAclPublicLoadBalancerA": {
-      "Type": "AWS::EC2::NetworkAcl",
-      "Properties": {
-        "VpcId": {"Ref": "VPC"}
-      }
-    },
-    "NetworkAclPublicLoadBalancerB": {
-      "Type": "AWS::EC2::NetworkAcl",
-      "Properties": {
-        "VpcId": {"Ref": "VPC"}
-      }
-    },
-    "SubnetNetworkAclAssociationPublicLoadBalancerA": {
-      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
-      "Properties": {
-        "SubnetId": {"Ref": "SubnetPublicLoadBalancerA"},
-        "NetworkAclId": {"Ref": "NetworkAclPublicLoadBalancerA"}
-      }
-    },
-    "SubnetNetworkAclAssociationPublicLoadBalancerB": {
-      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
-      "Properties": {
-        "SubnetId": {"Ref": "SubnetPublicLoadBalancerB"},
-        "NetworkAclId": {"Ref": "NetworkAclPublicLoadBalancerB"}
-      }
-    },
-    "NetworkAclEntryInPublicLoadBalancerHTTPA": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicLoadBalancerA"},
-        "RuleNumber": "110",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "80",
-          "To": "80"
-        },
-        "RuleAction": "allow",
-        "Egress": "false",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
-    "NetworkAclEntryInPublicLoadBalancerHTTPB": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicLoadBalancerB"},
-        "RuleNumber": "110",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "80",
-          "To": "80"
-        },
-        "RuleAction": "allow",
-        "Egress": "false",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
-    "NetworkAclEntryInPublicLoadBalancerEphemeralPortsA": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicLoadBalancerA"},
-        "RuleNumber": "200",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "1024",
-          "To": "65535"
-        },
-        "RuleAction": "allow",
-        "Egress": "false",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
-    "NetworkAclEntryInPublicLoadBalancerEphemeralPortsB": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicLoadBalancerB"},
-        "RuleNumber": "200",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "1024",
-          "To": "65535"
-        },
-        "RuleAction": "allow",
-        "Egress": "false",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
-    "NetworkAclEntryOutPublicLoadBalancerHTTPA": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicLoadBalancerA"},
-        "RuleNumber": "100",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "80",
-          "To": "80"
-        },
-        "RuleAction": "allow",
-        "Egress": "true",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
-    "NetworkAclEntryOutPublicLoadBalancerHTTPB": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicLoadBalancerB"},
-        "RuleNumber": "100",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "80",
-          "To": "80"
-        },
-        "RuleAction": "allow",
-        "Egress": "true",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
-    "NetworkAclEntryOutPublicLoadBalancerHTTPSA": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicLoadBalancerA"},
-        "RuleNumber": "110",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "443",
-          "To": "443"
-        },
-        "RuleAction": "allow",
-        "Egress": "true",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
-    "NetworkAclEntryOutPublicLoadBalancerHTTPSB": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicLoadBalancerB"},
-        "RuleNumber": "110",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "443",
-          "To": "443"
-        },
-        "RuleAction": "allow",
-        "Egress": "true",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
-    "NetworkAclEntryOutPublicLoadBalancerEphemeralPortsA": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicLoadBalancerA"},
-        "RuleNumber": "200",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "1024",
-          "To": "65535"
-        },
-        "RuleAction": "allow",
-        "Egress": "true",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
-    "NetworkAclEntryOutPublicLoadBalancerEphemeralPortsB": {
-      "Type": "AWS::EC2::NetworkAclEntry",
-      "Properties": {
-        "NetworkAclId": {"Ref": "NetworkAclPublicLoadBalancerB"},
-        "RuleNumber": "200",
-        "Protocol": "6",
-        "PortRange": {
-          "From": "1024",
-          "To": "65535"
-        },
-        "RuleAction": "allow",
-        "Egress": "true",
-        "CidrBlock": "0.0.0.0/0"
-      }
-    },
     "SubnetPrivateAppA": {
       "Type": "AWS::EC2::Subnet",
       "Properties": {
         "AvailabilityZone": {"Fn::Select": ["0", {"Fn::GetAZs": ""}]},
-        "CidrBlock": "10.0.3.0/24",
+        "CidrBlock": {"Ref": "PrivateAppSubnetACidrBlock"},
         "VpcId": {"Ref": "VPC"}
       }
     },
@@ -592,7 +344,7 @@
       "Type": "AWS::EC2::Subnet",
       "Properties": {
         "AvailabilityZone": {"Fn::Select": ["1", {"Fn::GetAZs": ""}]},
-        "CidrBlock": "10.0.4.0/24",
+        "CidrBlock": {"Ref": "PrivateAppSubnetBCidrBlock"},
         "VpcId": {"Ref": "VPC"}
       }
     },
@@ -676,7 +428,7 @@
         },
         "RuleAction": "allow",
         "Egress": "false",
-        "CidrBlock": "10.0.1.0/24"
+        "CidrBlock": {"Ref": "BastionSubnetCidrBlock"}
       }
     },
     "NetworkAclEntryInPrivateAppSSHB": {
@@ -691,7 +443,7 @@
         },
         "RuleAction": "allow",
         "Egress": "false",
-        "CidrBlock": "10.0.1.0/24"
+        "CidrBlock": {"Ref": "BastionSubnetCidrBlock"}
       }
     },
     "NetworkAclEntryInPrivateAppHTTPA": {
@@ -706,7 +458,7 @@
         },
         "RuleAction": "allow",
         "Egress": "false",
-        "CidrBlock": "10.0.2.0/24"
+        "CidrBlock": {"Ref": "LoadBalancerSubnetACidrBlock"}
       }
     },
     "NetworkAclEntryInPrivateAppHTTPB": {
@@ -721,7 +473,7 @@
         },
         "RuleAction": "allow",
         "Egress": "false",
-        "CidrBlock": "10.0.5.0/24"
+        "CidrBlock": {"Ref": "LoadBalancerSubnetBCidrBlock"}
       }
     },
     "NetworkAclEntryInPrivateAppInternalA": {
@@ -736,7 +488,7 @@
         },
         "RuleAction": "allow",
         "Egress": "false",
-        "CidrBlock": "10.0.4.0/24"
+        "CidrBlock": {"Ref": "PrivateAppSubnetBCidrBlock"}
       }
     },
     "NetworkAclEntryInPrivateAppInternalB": {
@@ -751,7 +503,7 @@
         },
         "RuleAction": "allow",
         "Egress": "false",
-        "CidrBlock": "10.0.3.0/24"
+        "CidrBlock": {"Ref": "PrivateAppSubnetACidrBlock"}
       }
     },
     "NetworkAclEntryInNATPrivateAppHTTPA": {
@@ -766,7 +518,7 @@
         },
         "RuleAction": "allow",
         "Egress": "false",
-        "CidrBlock": "10.0.0.0/24"
+        "CidrBlock": {"Ref": "NATSubnetCidrBlock"}
       }
     },
     "NetworkAclEntryInNATPrivateAppHTTPB": {
@@ -781,7 +533,7 @@
         },
         "RuleAction": "allow",
         "Egress": "false",
-        "CidrBlock": "10.0.0.0/24"
+        "CidrBlock": {"Ref": "NATSubnetCidrBlock"}
       }
     },
     "NetworkAclEntryInPrivateAppEphemeralPortsA": {
@@ -915,7 +667,7 @@
           "DeleteOnTermination": "true",
           "SubnetId": {"Ref": "SubnetPublicNAT"},
           "DeviceIndex": "0",
-          "GroupSet": [{"Ref": "SecurityGroup"}]
+          "GroupSet": [{"Ref": "SecurityGroupNAT"}]
         }],
         "SourceDestCheck": "false",
         "UserData": {"Fn::Base64": {"Fn::Join": ["", [
@@ -951,7 +703,7 @@
       "Properties": {
         "Name": "LoadBalancer",
         "Scheme": "internet-facing",
-        "SecurityGroups": [{"Ref": "SecurityGroup"}],
+        "SecurityGroups": [{"Ref": "SecurityGroupLoadBalancer"}],
         "Subnets": [{"Ref": "SubnetPublicLoadBalancerA"}, {"Ref": "SubnetPublicLoadBalancerB"}]
       },
       "DependsOn": "VPCGatewayAttachment"
@@ -1006,7 +758,7 @@
       "Properties": {
         "ImageId": {"Fn::FindInMap": ["EC2RegionMap", {"Ref": "AWS::Region"}, "UbuntuXenial"]},
         "InstanceType": "t2.micro",
-        "SecurityGroups": [{"Ref": "SecurityGroup"}],
+        "SecurityGroups": [{"Ref": "SecurityGroupApp"}],
         "KeyName": {"Ref": "KeyName"},
         "IamInstanceProfile": {"Ref": "InstanceRoleInstanceProfile"},
         "UserData": {"Fn::Base64": {"Fn::Join": ["", [
