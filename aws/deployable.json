@@ -41,12 +41,12 @@
     "PrivateAppSubnetACidrBlock": {
       "Description": "CIDR block for private app subnet A",
       "Type": "String",
-      "Default": "10.0.1.0/24",
+      "Default": "10.0.1.0/24"
     },
     "PrivateAppSubnetBCidrBlock": {
       "Description": "CIDR block for private app subnet B",
       "Type": "String",
-      "Default": "10.0.2.0/24",
+      "Default": "10.0.2.0/24"
     },
     "NATSubnetCidrBlock": {
       "Description": "CIDR block for NAT server subnet",
