@@ -2,10 +2,12 @@
 
 REGION=us-east-1
 DEPLOY_BUCKET=deployable-code
+CONFIG_BUCKET=deployable-config
 KEY_PAIR_NAME=deployable
 STACK_NAME=deployable
 
 export REGION
 export DEPLOY_BUCKET
+export CONFIG_BUCKET
 export KEY_PAIR_NAME
 export STACK_NAME

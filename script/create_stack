@@ -27,6 +27,8 @@ if aws s3 ls "s3://${DEPLOY_BUCKET}/${VERSION}.tar.gz" > /dev/null; then
     SKIP_DEPLOYMENT=true . "$ROOT/script/release"
 fi
 
+aws s3 cp "${ROOT}/aws/awslogs.conf" "s3://${CONFIG_BUCKET}/awslogs.conf"
+
 aws cloudformation "$CMD" \
     --stack-name "$STACK_NAME" \
     --template-body "file://$ROOT/aws/deployable.json" \
@@ -35,6 +37,7 @@ aws cloudformation "$CMD" \
     "ParameterKey=IpForSSH,ParameterValue=${MY_IP}" \
     "ParameterKey=KeyName,ParameterValue=${KEY_PAIR_NAME}" \
     "ParameterKey=DeployBucket,ParameterValue=${DEPLOY_BUCKET}" \
+    "ParameterKey=ConfigBucket,ParameterValue=${CONFIG_BUCKET}" \
     "ParameterKey=DeployKey,ParameterValue=${VERSION}.tar.gz" \
     --region "$REGION"
 

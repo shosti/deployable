@@ -28,6 +28,11 @@
       "Description": "Your public IP address to allow SSH access",
       "Type": "String"
     },
+    "ConfigBucket": {
+      "Description": "S3 bucket for instance config files",
+      "Type": "String",
+      "Default": "deployable-config"
+    },
     "DeployBucket": {
       "Description": "S3 bucket for initial deployment code",
       "Type": "String",
@@ -586,6 +591,10 @@
                 "codedeploy-agent": {
                   "enabled": "true",
                   "ensureRunning": "true"
+                },
+                "awslogs": {
+                  "enabled": "true",
+                  "ensureRunning": "true"
                 }
               }
             },
@@ -617,6 +626,10 @@
           "wget https://aws-codedeploy-", {"Ref": "AWS::Region"}, ".s3.amazonaws.com/latest/install\n",
           "chmod +x ./install\n",
           "./install auto\n",
+          "# Install log agent\n",
+          "curl https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py -O\n",
+          "chmod +x ./awslogs-agent-setup.py\n",
+          "./awslogs-agent-setup.py -n -r ", {"Ref": "AWS::Region"}, " -c s3://", {"Ref": "ConfigBucket"}, "/awslogs.conf\n",
           "# Make deploy dir.\n",
           "mkdir /deploy\n",
           "cfn-init -s ", {"Ref": "AWS::StackId"}, " -r AppServerLaunchConfiguration --region ", {"Ref": "AWS::Region"}, "\n",
@@ -626,11 +639,6 @@
           "# All is well, so signal success.\n",
           "cfn-signal --stack ", {"Ref": "AWS::StackName"}, " --resource AppServerAutoScalingGroup --region ", {"Ref": "AWS::Region"}, "\n"
         ]]}}
-      },
-      "CreationPolicy": {
-        "ResourceSignal": {
-          "Timeout": "PT10M"
-        }
       }
     },
     "AppServerAutoScalingGroup": {
@@ -650,7 +658,8 @@
       },
       "CreationPolicy": {
         "ResourceSignal": {
-          "Timeout": "PT10M"
+          "Timeout": "PT10M",
+          "Count": {"Ref": "NumberOfServers"}
         }
       },
       "DependsOn": "NatServer"
@@ -699,10 +708,35 @@
                 "autoscaling:Describe*",
                 "cloudformation:Describe*",
                 "cloudformation:GetTemplate",
-                "ec2:DescribeInstances",
-                "s3:Get*"
+                "ec2:DescribeInstances"
               ],
               "Resource": "*"
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:GetObject"
+              ],
+              "Resource": {"Fn::Join": ["", ["arn:aws:s3:::", {"Ref": "DeployBucket"}, "/*"]]}
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:GetObject"
+              ],
+              "Resource": {"Fn::Join": ["", ["arn:aws:s3:::", {"Ref": "ConfigBucket"}, "/*"]]}
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:DescribeLogStreams"
+              ],
+              "Resource": [
+                "arn:aws:logs:*:*:*"
+              ]
             }
           ]
         },
