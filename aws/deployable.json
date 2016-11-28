@@ -38,20 +38,15 @@
       "Type": "String",
       "Default": "0.0.9.tar.gz"
     },
-    "BastionSubnetCidrBlock": {
-      "Description": "CIDR block for bastion host subnet",
-      "Type": "String",
-      "Default": "10.0.1.0/24"
-    },
     "PrivateAppSubnetACidrBlock": {
       "Description": "CIDR block for private app subnet A",
       "Type": "String",
-      "Default": "10.0.3.0/24",
+      "Default": "10.0.1.0/24",
     },
     "PrivateAppSubnetBCidrBlock": {
       "Description": "CIDR block for private app subnet B",
       "Type": "String",
-      "Default": "10.0.4.0/24",
+      "Default": "10.0.2.0/24",
     },
     "NATSubnetCidrBlock": {
       "Description": "CIDR block for NAT server subnet",
@@ -61,12 +56,12 @@
     "LoadBalancerSubnetACidrBlock": {
       "Description": "CIDR block for load balancer subnet A",
       "Type": "String",
-      "Default": "10.0.2.0/24"
+      "Default": "10.0.3.0/24"
     },
     "LoadBalancerSubnetBCidrBlock": {
       "Description": "CIDR block for load balancer subnet B",
       "Type": "String",
-      "Default": "10.0.5.0/24"
+      "Default": "10.0.4.0/24"
     }
   },
   "Mappings": {
@@ -102,23 +97,6 @@
         "GroupId": {"Ref": "SecurityGroupApp"}
       }
     },
-    "SecurityGroupBastion": {
-      "Type": "AWS::EC2::SecurityGroup",
-      "Properties": {
-        "GroupDescription": "Security group for SSH bastion host",
-        "VpcId": {"Ref": "VPC"}
-      }
-    },
-    "SecurityGroupBastionIngress": {
-      "Type": "AWS::EC2::SecurityGroupIngress",
-      "Properties": {
-        "IpProtocol": "6",
-        "FromPort": "22",
-        "ToPort": "22",
-        "CidrIp": {"Fn::Join": ["", [{"Ref": "IpForSSH"}, "/32"]]},
-        "GroupId": {"Ref": "SecurityGroupBastion"}
-      }
-    },
     "SecurityGroupNAT": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
@@ -146,6 +124,16 @@
         "GroupId": {"Ref": "SecurityGroupNAT"}
       }
     },
+    "SecurityGroupNATIngressSSH": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "IpProtocol": "6",
+        "FromPort": "22",
+        "ToPort": "22",
+        "CidrIp": {"Fn::Join": ["", [{"Ref": "IpForSSH"}, "/32"]]},
+        "GroupId": {"Ref": "SecurityGroupNAT"}
+      }
+    },
     "SecurityGroupNATEgressHTTP": {
       "Type": "AWS::EC2::SecurityGroupEgress",
       "Properties":{
@@ -163,6 +151,16 @@
         "FromPort": "443",
         "ToPort": "443",
         "CidrIp": "0.0.0.0/0",
+        "GroupId": {"Ref": "SecurityGroupNAT"}
+      }
+    },
+    "SecurityGroupNATEgressSSH": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties":{
+        "IpProtocol": "6",
+        "FromPort": "22",
+        "ToPort": "22",
+        "DestinationSecurityGroupId": {"Ref": "SecurityGroupApp"},
         "GroupId": {"Ref": "SecurityGroupNAT"}
       }
     },
@@ -237,36 +235,6 @@
       "Type": "AWS::EC2::Route",
       "Properties": {
         "RouteTableId": {"Ref": "RouteTablePublicNAT"},
-        "DestinationCidrBlock": "0.0.0.0/0",
-        "GatewayId": {"Ref": "InternetGateway"}
-      },
-      "DependsOn": "VPCGatewayAttachment"
-    },
-    "SubnetPublicSSHBastion": {
-      "Type": "AWS::EC2::Subnet",
-      "Properties": {
-        "AvailabilityZone": {"Fn::Select": ["0", {"Fn::GetAZs": ""}]},
-        "CidrBlock": {"Ref": "BastionSubnetCidrBlock"},
-        "VpcId": {"Ref": "VPC"}
-      }
-    },
-    "RouteTablePublicSSHBastion": {
-      "Type": "AWS::EC2::RouteTable",
-      "Properties": {
-        "VpcId": {"Ref": "VPC"}
-      }
-    },
-    "RouteTableAssociationPublicSSHBastion": {
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-      "Properties": {
-        "SubnetId": {"Ref": "SubnetPublicSSHBastion"},
-        "RouteTableId": {"Ref": "RouteTablePublicSSHBastion"}
-      }
-    },
-    "RoutePublicSSHBastionToInternet": {
-      "Type": "AWS::EC2::Route",
-      "Properties": {
-        "RouteTableId": {"Ref": "RouteTablePublicSSHBastion"},
         "DestinationCidrBlock": "0.0.0.0/0",
         "GatewayId": {"Ref": "InternetGateway"}
       },
@@ -428,7 +396,7 @@
         },
         "RuleAction": "allow",
         "Egress": "false",
-        "CidrBlock": {"Ref": "BastionSubnetCidrBlock"}
+        "CidrBlock": {"Ref": "NATSubnetCidrBlock"}
       }
     },
     "NetworkAclEntryInPrivateAppSSHB": {
@@ -443,7 +411,7 @@
         },
         "RuleAction": "allow",
         "Egress": "false",
-        "CidrBlock": {"Ref": "BastionSubnetCidrBlock"}
+        "CidrBlock": {"Ref": "NATSubnetCidrBlock"}
       }
     },
     "NetworkAclEntryInPrivateAppHTTPA": {
@@ -672,6 +640,7 @@
         "SourceDestCheck": "false",
         "UserData": {"Fn::Base64": {"Fn::Join": ["", [
           "#!/bin/bash -ex\n",
+          "yum update -y\n",
           "/opt/aws/bin/cfn-signal --stack ", {"Ref": "AWS::StackName"}, " --resource NatServer --region ", {"Ref": "AWS::Region"}, "\n"
         ]]}}
       },
@@ -679,22 +648,6 @@
         "ResourceSignal": {
           "Timeout": "PT5M"
         }
-      },
-      "DependsOn": "VPCGatewayAttachment"
-    },
-    "BastionHost": {
-      "Type": "AWS::EC2::Instance",
-      "Properties": {
-        "ImageId": {"Fn::FindInMap": ["EC2RegionMap", {"Ref": "AWS::Region"}, "UbuntuXenial"]},
-        "InstanceType": "t2.micro",
-        "KeyName": {"Ref": "KeyName"},
-        "NetworkInterfaces": [{
-          "AssociatePublicIpAddress": "true",
-          "DeleteOnTermination": "true",
-          "SubnetId": {"Ref": "SubnetPublicSSHBastion"},
-          "DeviceIndex": "0",
-          "GroupSet": [{"Ref": "SecurityGroupBastion"}]
-        }]
       },
       "DependsOn": "VPCGatewayAttachment"
     },
@@ -965,8 +918,8 @@
   },
   "Outputs": {
     "BastionHostPublicName": {
-      "Value": {"Fn::GetAtt": ["BastionHost", "PublicDnsName"]},
-      "Description": "connect via SSH as user ubuntu"
+      "Value": {"Fn::GetAtt": ["NatServer", "PublicDnsName"]},
+      "Description": "connect via SSH as user ec2-user"
     },
     "URL": {
       "Value": {"Fn::Join": ["", ["http://", {"Fn::GetAtt": ["LoadBalancer", "DNSName"]}]]},
