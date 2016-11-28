@@ -616,7 +616,7 @@
           "#!/bin/bash -ex\n",
           "apt-get update -y\n",
           "apt-get upgrade -y\n",
-          "apt-get install wget ruby awscli python-pip -y\n",
+          "apt-get install wget ruby awscli python-pip --no-install-recommends -y\n",
           "# Install CloudFormation helpers\n",
           "cd /home/ubuntu\n",
           "mkdir aws-cfn-bootstrap-latest\n",
