@@ -25,7 +25,7 @@ environment :prod do
   set vm_args: "rel/vm.args"
   set cookie: :"*ddupX)@EG0OFAOuL>?(lk-*@`uq5c1h*EmM(fLRUj/|*~iond&i)N$ZeqZjz>{R"
   set overlays: [
-    {:template, "aws/appspec.yml.eex", "appspec.yml"},
+    {:copy, "aws/appspec.yml", "appspec.yml"},
     {:mkdir, "script"},
     {:copy, "script/start", "script/start"},
     {:copy, "script/stop", "script/stop"},
