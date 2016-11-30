@@ -1,26 +1,40 @@
 #!/usr/bin/env bash
 
-set -exo pipefail
-
-# A bunch of AWS preliminaries
-REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document|grep region|awk -F\" '{print $4}')
-NODE_IPS=$(aws ec2 describe-instances \
-                      --filters "Name=tag:AutoScalingGroupName,Values=Deployable" \
-                      --output text \
-                      --query  "Reservations[*].Instances[*].PrivateIpAddress" \
-                      --region "$REGION")
-export NODE_IPS
-HOST_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
-export HOST_IP
-export PORT=4000
-export REPLACE_OS_VARS=true
+set -euxo pipefail
 
 ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+# shellcheck source=script/vars
+. "${ROOT}/script/vars"
+
 # CodeDeploy strangely keeps the tarball in the parent directory. Even more
 # strangely, it's still gzipped but doesn't have a .gz filename.
 TARBALL="${ROOT}/../bundle.tar"
 # shellcheck disable=SC2010
 VERSION=$(ls "${ROOT}/releases" | grep -E '[0.9]+\.[0.9]+\.[0-9]+' | head -1)
+
+export_vars() {
+    REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document|grep region|awk -F\" '{print $4}')
+    NODE_IPS=$(aws ec2 describe-instances \
+                   --filters "Name=tag:AutoScalingGroupName,Values=Deployable" \
+                   --output text \
+                   --query  "Reservations[*].Instances[*].PrivateIpAddress" \
+                   --region "$REGION")
+    HOST_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+
+    export PORT=4000
+    export REPLACE_OS_VARS=true
+    export NODE_IPS
+    export HOST_IP
+}
+
+export_secrets() {
+    # shellcheck disable=SC2046
+    eval $(aws s3 cp "s3://${SECRETS_BUCKET}/secrets.txt" - \
+               --sse aws:kms \
+               --sse-kms-key-id "$SECRETS_KEY_ID" \
+               | grep -E '^[^#].+=[^=]+' \
+               | sed 's/^/export /')
+}
 
 install_version() {
     mkdir -p "${HOME}/releases/${VERSION}"
@@ -43,6 +57,9 @@ initial_app_start() {
     tar xzf "$TARBALL" -C "$HOME"
     "${HOME}/bin/deployable" start
 }
+
+export_vars
+export_secrets
 
 if [[ $("${ROOT}/bin/deployable" ping) == *"pong"* ]]; then
     try_upgrade

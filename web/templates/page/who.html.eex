@@ -5,3 +5,5 @@
 <%= for node <- Node.list do %>
     <h3><%= node %></h3>
 <% end %>
+
+<h1>Secret: <%= Application.get_env(:deployable, :secret) %></h1>

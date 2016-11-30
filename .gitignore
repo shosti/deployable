@@ -3,6 +3,7 @@
 /db
 /deps
 /*.ez
+*.pem
 
 # Generated on crash by the VM
 erl_crash.dump
@@ -23,3 +24,4 @@ erl_crash.dump
 # variables.
 /config/prod.secret.exs
 /rel/deployable
+/priv/secrets.txt

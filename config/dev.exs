@@ -14,6 +14,8 @@ config :deployable, Deployable.Endpoint,
   watchers: [node: ["node_modules/brunch/bin/brunch", "watch", "--stdin",
                     cd: Path.expand("../", __DIR__)]]
 
+config :deployable,
+  secret: "Foo"
 
 # Watch static and templates for browser reloading.
 config :deployable, Deployable.Endpoint,

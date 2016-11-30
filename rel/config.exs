@@ -27,6 +27,7 @@ environment :prod do
   set overlays: [
     {:copy, "aws/appspec.yml", "appspec.yml"},
     {:mkdir, "script"},
+    {:copy, "script/vars", "script/vars"},
     {:copy, "script/start", "script/start"},
     {:copy, "script/stop", "script/stop"},
     {:copy, "script/validate", "script/validate"},

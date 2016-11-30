@@ -38,7 +38,9 @@ aws cloudformation "$CMD" \
     "ParameterKey=KeyName,ParameterValue=${KEY_PAIR_NAME}" \
     "ParameterKey=DeployBucket,ParameterValue=${DEPLOY_BUCKET}" \
     "ParameterKey=ConfigBucket,ParameterValue=${CONFIG_BUCKET}" \
+    "ParameterKey=SecretsBucket,ParameterValue=${SECRETS_BUCKET}" \
     "ParameterKey=DeployKey,ParameterValue=${VERSION}.tar.gz" \
+    "ParameterKey=SecretsKeyId,ParameterValue=${SECRETS_KEY_ID}" \
     --region "$REGION"
 
 while [[ $(get_stack_status) != *"COMPLETE"* ]]; do

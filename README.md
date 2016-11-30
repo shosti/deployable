@@ -18,10 +18,15 @@ Features I'm hoping to add:
 
 ## Usage
 
-- Mess with variables in `script/vars` (and/or the other scripts)
+- Make an AWS key pair for the instances
+- Make a KMS key to encrypt secrets
+- Make 2 S3 buckets: one for code deployments, and one for server config
+- Change variables in `script/vars` accordingly
+- `script/setup_secrets` to set up secrets config
+- `script/put_secrets` (after editing priv/secrets.txt) to put initial secrets
 - `script/create_stack` to make the initial release/stack (you can also use
   this script to update the stack if you make changes to the template)
-- `script/release` to cut a new release and deploy (make sure the version is
+- `script/release` to cut a new release and deploy (make sure the app version is
   incremented)
 
 ## Caveat Emptor

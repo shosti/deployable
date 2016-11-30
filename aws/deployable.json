@@ -38,6 +38,15 @@
       "Type": "String",
       "Default": "deployable-code"
     },
+    "SecretsBucket": {
+      "Description": "S3 bucket for storing secrets",
+      "Type": "String",
+      "Default": "deployable-secrets"
+    },
+    "SecretsKeyId": {
+      "Description": "KMS Key ID for encrypting/decrypting secrets",
+      "Type": "String"
+    },
     "DeployKey": {
       "Description": "S3 key for initial deployment code",
       "Type": "String",
@@ -611,7 +620,7 @@
         "InstanceType": "t2.micro",
         "SecurityGroups": [{"Ref": "SecurityGroupApp"}],
         "KeyName": {"Ref": "KeyName"},
-        "IamInstanceProfile": {"Ref": "InstanceRoleInstanceProfile"},
+        "IamInstanceProfile": {"Ref": "AppServerRoleInstanceProfile"},
         "UserData": {"Fn::Base64": {"Fn::Join": ["", [
           "#!/bin/bash -ex\n",
           "apt-get update -y\n",
@@ -664,18 +673,18 @@
       },
       "DependsOn": "NatServer"
     },
-    "InstanceRoleInstanceProfile": {
+    "AppServerRoleInstanceProfile": {
       "Type": "AWS::IAM::InstanceProfile",
       "Properties": {
         "Path": "/",
         "Roles": [
           {
-            "Ref": "InstanceRole"
+            "Ref": "AppServerRole"
           }
         ]
       }
     },
-    "InstanceRole": {
+    "AppServerRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
         "AssumeRolePolicyDocument": {
@@ -696,10 +705,10 @@
         "Path": "/"
       }
     },
-    "InstanceRolePolicies": {
+    "AppServerRolePolicies": {
       "Type": "AWS::IAM::Policy",
       "Properties": {
-        "PolicyName": "InstanceRole",
+        "PolicyName": "AppServerRole",
         "PolicyDocument": {
           "Statement": [
             {
@@ -729,6 +738,13 @@
             {
               "Effect": "Allow",
               "Action": [
+                "s3:GetObject"
+              ],
+              "Resource": {"Fn::Join": ["", ["arn:aws:s3:::", {"Ref": "SecretsBucket"}, "/*"]]}
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
                 "logs:CreateLogGroup",
                 "logs:CreateLogStream",
                 "logs:PutLogEvents",
@@ -737,12 +753,22 @@
               "Resource": [
                 "arn:aws:logs:*:*:*"
               ]
+            },
+            {
+              "Sid": "AllowSecretsDecryption",
+              "Effect": "Allow",
+              "Action": [
+                "kms:Decrypt"
+              ],
+              "Resource": {"Fn::Join": ["", [
+                "arn:aws:kms:", {"Ref": "AWS::Region"}, ":", {"Ref": "AWS::AccountId"}, ":key/", {"Ref": "SecretsKeyId"}
+              ]]}
             }
-          ]
+          ],
         },
         "Roles": [
           {
-            "Ref": "InstanceRole"
+            "Ref": "AppServerRole"
           }
         ]
       }
@@ -804,6 +830,30 @@
             "Ref": "CodeDeployTrustRole"
           }
         ]
+      }
+    },
+    "SecretsBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {"Ref": "SecretsBucket"},
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Id": "PutObjPolicy",
+          "Statement": [{
+            "Sid": "DenyUnEncryptedObjectUploads",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": "s3:PutObject",
+            "Resource": {"Fn::Join": ["", ["arn:aws:s3:::", {"Ref": "SecretsBucket"}, "/*"]]},
+            "Condition": {
+              "StringNotEquals": {
+                "s3:x-amz-server-side-encryption-aws-kms-key-id": {"Fn::Join": ["", [
+                  "arn:aws:kms:", {"Ref": "AWS::Region"}, ":", {"Ref": "AWS::AccountId"}, ":key/", {"Ref": "SecretsKeyId"}
+                ]]}
+              }
+            }
+          }]
+        }
       }
     },
     "DeployableApp": {

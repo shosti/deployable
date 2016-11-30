@@ -2,7 +2,7 @@
 -name deployable@${HOST_IP}
 
 ## Cookie for distributed erlang
--setcookie *ddupX)@EG0OFAOuL>?(lk-*@`uq5c1h*EmM(fLRUj/|*~iond&i)N$ZeqZjz>{R
+-setcookie ${COOKIE}
 
 ## Heartbeat management; auto-restarts VM if it dies or becomes unresponsive
 ## (Disabled by default..use with caution!)
